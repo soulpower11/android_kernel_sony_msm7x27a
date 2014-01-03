@@ -181,7 +181,6 @@ int msm_fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 static int msm_fb_resource_initialized;
 
-#ifndef CONFIG_FB_BACKLIGHT
 static int lcd_backlight_registered;
 
 static void msm_fb_set_bl_brightness(struct led_classdev *led_cdev,
@@ -209,7 +208,6 @@ static struct led_classdev backlight_led = {
 	.brightness	= MAX_BACKLIGHT_BRIGHTNESS,
 	.brightness_set	= msm_fb_set_bl_brightness,
 };
-#endif
 
 #ifndef CONFIG_FIH_PROJECT_NAN
 #ifdef CONFIG_FB_MSM_LOGO
@@ -555,12 +553,10 @@ static int msm_fb_probe(struct platform_device *pdev)
 	err = pm_runtime_set_active(mfd->fbi->dev);
 	if (err < 0)
 		printk(KERN_ERR "pm_runtime: fail to set active.\n");
-	pm_runtime_enable(mfd->fbi->dev);
 
-#ifndef CONFIG_LEDS_CHIP_LM3533	 //Edison change backlight regester place to board init ++
-#ifdef CONFIG_FB_BACKLIGHT
+
 	msm_fb_config_backlight(mfd);
-#else
+
 	/* android supports only one lcd-backlight/lcd for now */
 	if (!lcd_backlight_registered) {
 		if (led_classdev_register(&pdev->dev, &backlight_led))
@@ -568,8 +564,7 @@ static int msm_fb_probe(struct platform_device *pdev)
 		else
 			lcd_backlight_registered = 1;
 	}
-#endif
-#endif //Edison change backlight regester place to board init --
+
 
 	pdev_list[pdev_list_cnt++] = pdev;
 	msm_fb_create_sysfs(pdev);
@@ -620,15 +615,15 @@ static int msm_fb_remove(struct platform_device *pdev)
 	/* remove /dev/fb* */
 	unregister_framebuffer(mfd->fbi);
 
-#ifdef CONFIG_FB_BACKLIGHT
+
 	/* remove /sys/class/backlight */
-	backlight_device_unregister(mfd->fbi->bl_dev);
-#else
+	backlight_device_unregister(mfd->fbi);
+
 	if (lcd_backlight_registered) {
 		lcd_backlight_registered = 0;
 		led_classdev_unregister(&backlight_led);
 	}
-#endif
+
 
 #ifdef MSM_FB_ENABLE_DBGFS
 	if (mfd->sub_dir)
@@ -1970,7 +1965,7 @@ static int msm_fb_open(struct fb_info *info, int user)
 			pr_debug("%s:%d no mdp_set_dma_pan_info %d\n",
 				__func__, __LINE__, info->node);
 
-		if (msm_fb_blank_sub(FB_BLANK_UNBLANK, info, mfd->op_enable)) {
+		if (msm_fb_blank_sub(FB_BLANK_UNBLANK, info, mfd->op_enable) != 0) {
 			printk(KERN_ERR "msm_fb_open: can't turn on display!\n");
 			return -1;
 		}

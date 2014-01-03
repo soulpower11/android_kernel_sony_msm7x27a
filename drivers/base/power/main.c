@@ -609,12 +609,6 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 			callback = pm_op(dev->class->pm, state);
 			goto Driver;
 		} else if (dev->class->resume) {
-
-            /*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-            #ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-            print_symbol("[PM]class resume: %s\n", (unsigned long)dev->class->resume);
-            #endif
-            /*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 			info = "legacy class ";
 			callback = dev->class->resume;
 			goto End;
@@ -1109,12 +1103,6 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 			goto Run;
 		} else if (dev->class->suspend) {
 			pm_dev_dbg(dev, state, "legacy class ");
-
-            /*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-            #ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-            print_symbol("[PM]class suspend: %s\n", (unsigned long)dev->class->suspend);
-            #endif
-            /*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 			error = legacy_suspend(dev, state, dev->class->suspend);
 			goto End;
 		}

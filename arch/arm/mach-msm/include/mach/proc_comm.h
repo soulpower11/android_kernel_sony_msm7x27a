@@ -243,15 +243,6 @@ typedef union smem_oem_cmd_data
   
 } smem_oem_cmd_data;
 
-/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00+[ */
-#define NV_FIHDBG_I    8045
-#define NV_ERR_FATAL_OPTIONS_I    905
-#define FIH_DEBUG_CMD_DATA_SIZE  5
-#define FIH_DEBUG_CFG_LEN  4 * sizeof(unsigned int)
-
-int msm_proc_comm_oem_multi(unsigned cmd, unsigned *data1, unsigned *data2, unsigned *cmd_parameter, int number);
-/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00+] */
-
 int msm_proc_comm_oem(unsigned cmd, unsigned *data1, unsigned *data2, unsigned *cmd_parameter);
 int msm_proc_comm_oem_n(unsigned cmd, unsigned *data1, unsigned *data2, unsigned *cmd_parameter, int para_size);
 //MTD-BSP-VT-PROC-00+]
@@ -277,9 +268,7 @@ int proc_comm_is_charger_connected(int *isConnected);
 
 void proc_comm_ftm_wlanaddr_write(char* buf);
 int proc_comm_ftm_wlanaddr_read(char * buf);
-/* FIH-SW3-CONN-JL-HotspotSAR_Backup-00+[ */
-int proc_comm_hotspot_sar_control(int state);
-/* FIH-SW3-CONN-JL-HotspotSAR_Backup-00+] */
+
 int proc_comm_get_hsed_voltage(int vset, int *voltage, int status); /* FIH-SW2-MM-AY-hsed_type-00 */
 int proc_comm_get_btn_type(int vset, int *voltage, int status); /* FIH-SW2-MM-AY-TAP_MultiBtn_00 */
 //MTD-BSP-VT-PROC-00+]

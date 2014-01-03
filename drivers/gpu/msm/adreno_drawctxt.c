@@ -147,7 +147,6 @@ int adreno_drawctxt_create(struct kgsl_device *device,
 {
 	struct adreno_context *drawctxt;
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
-	struct adreno_ringbuffer *rb = &adreno_dev->ringbuffer;
 	int ret;
 
 	drawctxt = kzalloc(sizeof(struct adreno_context), GFP_KERNEL);
@@ -158,7 +157,6 @@ int adreno_drawctxt_create(struct kgsl_device *device,
 	drawctxt->pagetable = pagetable;
 	drawctxt->bin_base_offset = 0;
 	drawctxt->id = context->id;
-	rb->timestamp[context->id] = 0;
 
 	if (flags & KGSL_CONTEXT_PREAMBLE)
 		drawctxt->flags |= CTXT_FLAGS_PREAMBLE;
@@ -176,12 +174,6 @@ int adreno_drawctxt_create(struct kgsl_device *device,
 	kgsl_sharedmem_writel(&device->memstore,
 			KGSL_MEMSTORE_OFFSET(drawctxt->id, ref_wait_ts),
 			KGSL_INIT_REFTIMESTAMP);
-	kgsl_sharedmem_writel(&device->memstore,
-					KGSL_MEMSTORE_OFFSET(drawctxt->id, ts_cmp_enable), 0);
-	kgsl_sharedmem_writel(&device->memstore,
-					KGSL_MEMSTORE_OFFSET(drawctxt->id, soptimestamp), 0);
-	kgsl_sharedmem_writel(&device->memstore,
-					KGSL_MEMSTORE_OFFSET(drawctxt->id, eoptimestamp), 0);
 
 	context->devctxt = drawctxt;
 	return 0;
@@ -221,13 +213,10 @@ void adreno_drawctxt_destroy(struct kgsl_device *device,
 				     CTXT_FLAGS_GMEM_SHADOW |
 				     CTXT_FLAGS_STATE_SHADOW);
 
-		drawctxt->flags |= CTXT_FLAGS_BEING_DESTOYED;
-
 		adreno_drawctxt_switch(adreno_dev, NULL, 0);
 	}
 
-	if (device->state != KGSL_STATE_HUNG)
-		adreno_idle(device);
+	adreno_idle(device);
 
 	kgsl_sharedmem_free(&drawctxt->gpustate);
 	kgsl_sharedmem_free(&drawctxt->context_gmem_shadow.gmemshadow);
@@ -282,6 +271,10 @@ void adreno_drawctxt_switch(struct adreno_device *adreno_dev,
 
 	/* already current? */
 	if (adreno_dev->drawctxt_active == drawctxt) {
+		if (adreno_dev->gpudev->ctxt_draw_workaround &&
+			adreno_is_a225(adreno_dev))
+				adreno_dev->gpudev->ctxt_draw_workaround(
+					adreno_dev, drawctxt);
 		return;
 	}
 

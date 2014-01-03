@@ -39,15 +39,6 @@
 #include "mdp.h"
 #include "mdp4.h"
 
-//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+[
-#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-#include <mach/cpuidle.h>
-#include <linux/pm_qos.h>
-extern unsigned int fih_get_tcxo_sd_during_display_on(void);
-static struct pm_qos_request pm_qos_req;
-#endif
-//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+]
-
 static struct completion dsi_dma_comp;
 static struct completion dsi_mdp_comp;
 static struct dsi_buf dsi_tx_buf;
@@ -110,9 +101,6 @@ void mipi_dsi_init(void)
 
 	INIT_LIST_HEAD(&pre_kickoff_list);
 	INIT_LIST_HEAD(&post_kickoff_list);
-#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-	pm_qos_add_request(&pm_qos_req, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
-#endif
 }
 
 
@@ -1052,12 +1040,14 @@ void mipi_dsi_mdp_busy_wait(struct msm_fb_data_type *mfd)
 		/* wait until DMA finishes the current job */
 		pr_debug("%s: pending pid=%d\n",
 				__func__, current->pid);
-/* FIH-SW-MM-VH-DISPLAY-JB01*[ */
+#ifdef CONFIG_FIH_PROJECT_NAN
+		wait_for_completion(&dsi_mdp_comp);
+#else
 		if(!wait_for_completion_timeout(&dsi_mdp_comp, 20*HZ))	{
 			printk(KERN_INFO "[DISPLAY] %s: Wait for dsi_mdp_comp timeout\n", __func__);
 			complete(&dsi_mdp_comp);
 		}
-/* FIH-SW-MM-VH-DISPLAY-JB01*] */
+#endif
 	}
 	pr_debug("%s: done pid=%d\n",
 				__func__, current->pid);
@@ -1149,14 +1139,15 @@ int mipi_dsi_cmd_reg_tx(uint32 data)
  * mipi_dsi_cmds_tx:
  * thread context only
  */
-/* FIH-SW-MM-VH-DISPLAY-JB01*[ */
 int mipi_dsi_cmds_tx(struct dsi_buf *tp, struct dsi_cmd_desc *cmds, int cnt)
 {
 	struct dsi_cmd_desc *cm;
 	uint32 dsi_ctrl, ctrl;
 	int i, video_mode;
 	unsigned long flag;
+#ifndef CONFIG_FIH_PROJECT_NAN
 	int RetryCount = 0;
+#endif
 	int ret = cnt;
 
 	/* turn on cmd mode
@@ -1169,7 +1160,7 @@ int mipi_dsi_cmds_tx(struct dsi_buf *tp, struct dsi_cmd_desc *cmds, int cnt)
 	if (video_mode) {
 		ctrl = dsi_ctrl | 0x04; /* CMD_MODE_EN */
 		MIPI_OUTP(MIPI_DSI_BASE + 0x0000, ctrl);
-	} 
+	}
 
 	spin_lock_irqsave(&dsi_mdp_lock, flag);
 	dsi_mdp_busy = TRUE;
@@ -1181,6 +1172,9 @@ int mipi_dsi_cmds_tx(struct dsi_buf *tp, struct dsi_cmd_desc *cmds, int cnt)
 		mipi_dsi_enable_irq(DSI_CMD_TERM);
 		mipi_dsi_buf_init(tp);
 		mipi_dsi_cmd_dma_add(tp, cm);
+#ifdef CONFIG_FIH_PROJECT_NAN
+		mipi_dsi_cmd_dma_tx(tp);
+#else
 		RetryCount = 0;
 		while (RetryCount < 50) {
 			if (mipi_dsi_cmd_dma_tx(tp) >= 0) {
@@ -1197,12 +1191,9 @@ int mipi_dsi_cmds_tx(struct dsi_buf *tp, struct dsi_cmd_desc *cmds, int cnt)
 			ret = -EPERM;
 			break;
 		}
-		if (cm->wait)
-#ifdef CONFIG_FIH_HR_MSLEEP
-			hr_msleep(cm->wait);
-#else
-			msleep(cm->wait);
 #endif
+		if (cm->wait)
+			msleep(cm->wait);
 		cm++;
 	}
 
@@ -1216,94 +1207,6 @@ int mipi_dsi_cmds_tx(struct dsi_buf *tp, struct dsi_cmd_desc *cmds, int cnt)
 
 	return ret;
 }
-
-/*
- * mipi_dsi_cmds_tx:
- * thread context only
- */
-/* FIH-SW-MM-VH-DISPLAY-JB01*[ */
-int mipi_dsi_cmds_tx_tap(struct msm_fb_data_type *mfd, 
-			struct dsi_buf *tp, struct dsi_cmd_desc *cmds, int cnt)
-{
-	struct dsi_cmd_desc *cm;
-	uint32 dsi_ctrl, ctrl;
-	int i, video_mode;
-	unsigned long flag;
-	int RetryCount = 0;
-	int ret = cnt;
-
-	/* turn on cmd mode
-	* for video mode, do not send cmds more than
-	* one pixel line, since it only transmit it
-	* during BLLP.
-	*/
-	dsi_ctrl = MIPI_INP(MIPI_DSI_BASE + 0x0000);
-	video_mode = dsi_ctrl & 0x02; /* VIDEO_MODE_EN */
-	if (video_mode) {
-		ctrl = dsi_ctrl | 0x04; /* CMD_MODE_EN */
-		MIPI_OUTP(MIPI_DSI_BASE + 0x0000, ctrl);
-	} else { /* cmd mode */
-		/*
-		 * during boot up, cmd mode is configured
-		 * even it is video mode panel.
-		 */
-		/* make sure mdp dma is not txing pixel data */
-		if (mfd->panel_info.type == MIPI_CMD_PANEL) {
-#ifndef CONFIG_FB_MSM_MDP303
-			mdp4_dsi_cmd_dma_busy_wait(mfd);
-#else
-			mdp3_dsi_cmd_dma_busy_wait(mfd);
-#endif
-		}
-	}
-
-	spin_lock_irqsave(&dsi_mdp_lock, flag);
-	dsi_mdp_busy = TRUE;
-	spin_unlock_irqrestore(&dsi_mdp_lock, flag);
-
-	cm = cmds;
-	mipi_dsi_buf_init(tp);
-	for (i = 0; i < cnt; i++) {
-		mipi_dsi_enable_irq(DSI_CMD_TERM);
-		mipi_dsi_buf_init(tp);
-		mipi_dsi_cmd_dma_add(tp, cm);
-		RetryCount = 0;
-		while (RetryCount < 50) {
-			if (mipi_dsi_cmd_dma_tx(tp) >= 0) {
-				if (RetryCount > 0)
-					printk(KERN_ALERT "[DISPLAY] %s: mipi command Retry <%d>\n",
-							__func__, RetryCount);
-				break;
-			}
-			RetryCount ++;
-		}
-		if (RetryCount == 50) {
-			printk(KERN_ERR "[DISPLAY] %s: break mipi dsi tx command buffer\n",
-					__func__);
-			ret = -EPERM;
-			break;
-		}
-		if (cm->wait)
-#ifdef CONFIG_FIH_HR_MSLEEP
-			hr_msleep(cm->wait);
-#else
-			msleep(cm->wait);
-#endif
-		cm++;
-	}
-
-	if (video_mode)
-		MIPI_OUTP(MIPI_DSI_BASE + 0x0000, dsi_ctrl); /* restore */
-
-	spin_lock_irqsave(&dsi_mdp_lock, flag);
-	dsi_mdp_busy = FALSE;
-	complete(&dsi_mdp_comp);
-	spin_unlock_irqrestore(&dsi_mdp_lock, flag);
-
-	return ret;
-}
-
-/* FIH-SW-MM-VH-DISPLAY-JB01*] */
 
 /* MIPI_DSI_MRPS, Maximum Return Packet Size */
 static char max_pktsize[2] = {0x00, 0x00}; /* LSB tx first, 10 bytes */
@@ -1379,12 +1282,10 @@ int mipi_dsi_cmds_rx(struct msm_fb_data_type *mfd,
 		mipi_dsi_enable_irq(DSI_CMD_TERM);
 		mipi_dsi_buf_init(tp);
 		mipi_dsi_cmd_dma_add(tp, pkt_size_cmd);
-/* FIH-SW-MM-VH-DISPLAY-JB01*[ */
 		if (mipi_dsi_cmd_dma_tx(tp) < 0) {
 			printk(KERN_ERR "[DISPLAY] %s: mipi dsi cmd tx fail\n",__func__);
 			return -EPERM;
 		}
-/* FIH-SW-MM-VH-DISPLAY-JB01*] */
 	}
 
 	mipi_dsi_enable_irq(DSI_CMD_TERM);
@@ -1392,12 +1293,10 @@ int mipi_dsi_cmds_rx(struct msm_fb_data_type *mfd,
 	mipi_dsi_cmd_dma_add(tp, cmds);
 
 	/* transmit read comamnd to client */
-/* FIH-SW-MM-VH-DISPLAY-JB01*[ */
 	if (mipi_dsi_cmd_dma_tx(tp) < 0) {
 		printk(KERN_ERR "[DISPLAY] %s: mipi_dsi_cmd_dma_tx fail\n",__func__);
 		return -EPERM;
 	}
-/* FIH-SW-MM-VH-DISPLAY-JB01*] */
 	mipi_dsi_disable_irq(DSI_CMD_TERM);
 	/*
 	 * once cmd_dma_done interrupt received,
@@ -1576,10 +1475,13 @@ int mipi_dsi_cmds_rx_new(struct dsi_buf *tp, struct dsi_buf *rp,
 
 	return rp->len;
 }
-/* FIH-SW-MM-VH-DISPLAY-JB01*[ */
+
 int mipi_dsi_cmd_dma_tx(struct dsi_buf *tp)
 {
+
+#ifndef CONFIG_FIH_PROJECT_NAN
 	int ret = 0;
+#endif
 	unsigned long flags;
 
 #ifdef DSI_HOST_DEBUG
@@ -1594,12 +1496,6 @@ int mipi_dsi_cmd_dma_tx(struct dsi_buf *tp)
 
 	pr_debug("\n");
 #endif
-
-//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+[
-#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-	pm_qos_update_request(&pm_qos_req, msm_cpuidle_get_deepest_idle_latency());
-#endif
-//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+]
 
 	if (tp->len == 0) {
 		pr_err("%s: Error, len=0\n", __func__);
@@ -1623,35 +1519,30 @@ int mipi_dsi_cmd_dma_tx(struct dsi_buf *tp)
 	wmb();
 	spin_unlock_irqrestore(&dsi_mdp_lock, flags);
 
-	if (!wait_for_completion_timeout(&dsi_dma_comp, 10)) {
+#ifdef CONFIG_FIH_PROJECT_NAN
+	wait_for_completion(&dsi_dma_comp);
+#else
+	if (!wait_for_completion_timeout(&dsi_dma_comp, 1 * HZ)) {
 		printk(KERN_ALERT "[DISPLAY]%s: Send DSI command timeout\n", __func__);
 		complete(&dsi_dma_comp);
 		ret = -1;
 	}
+#endif
 
 	dma_unmap_single(&dsi_dev, tp->dmap, tp->len, DMA_TO_DEVICE);
 	tp->dmap = 0;
 
-//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+[
-#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-		pm_qos_update_request(&pm_qos_req, PM_QOS_DEFAULT_VALUE);
-#endif
-//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+]
-
+#ifdef CONFIG_FIH_PROJECT_NAN
+	return tp->len;
+#else
 	return (ret == 0) ? tp->len : ret;
+#endif
 }
-/* FIH-SW-MM-VH-DISPLAY-JB01*] */
 
 int mipi_dsi_cmd_dma_rx(struct dsi_buf *rp, int rlen)
 {
 	uint32 *lp, data;
 	int i, off, cnt;
-
-//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+[
-#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-	pm_qos_update_request(&pm_qos_req, msm_cpuidle_get_deepest_idle_latency());
-#endif
-//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+]
 
 	lp = (uint32 *)rp->data;
 	cnt = rlen;
@@ -1671,12 +1562,6 @@ int mipi_dsi_cmd_dma_rx(struct dsi_buf *rp, int rlen)
 		off -= 4;
 		rp->len += sizeof(*lp);
 	}
-
-//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+[
-#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-	pm_qos_update_request(&pm_qos_req, PM_QOS_DEFAULT_VALUE);
-#endif
-//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+]
 
 	return rlen;
 }

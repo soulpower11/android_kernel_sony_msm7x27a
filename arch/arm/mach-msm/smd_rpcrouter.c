@@ -52,10 +52,6 @@
 #include "modem_notifier.h"
 #include "smd_rpc_sym.h"
 #include "smd_private.h"
-/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00+ */
-#include "mach/msm_smsm.h" 
-extern unsigned int debug_rpcmsg_enable;
-/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00+ */
 
 enum {
 	SMEM_LOG = 1U << 0,
@@ -310,9 +306,7 @@ static void modem_reset_cleanup(struct rpcrouter_xprt_info *xprt_info)
 	struct rr_fragment *frag, *next;
 	struct msm_rpc_reply *reply, *reply_tmp;
 	unsigned long flags;
-	/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00+ */
-	printk(KERN_ERR "[RPC] Enter modem_reset_start_cleanup\n");
-	
+
 	if (!xprt_info) {
 		pr_err("%s: Invalid xprt_info\n", __func__);
 		return;
@@ -1148,20 +1142,6 @@ static void do_read_data(struct work_struct *work)
 	}
 #endif
 
-	/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00+[ */
-	if (debug_rpcmsg_enable)
-	{
-		rq = (struct rpc_request_hdr *) frag->data;
-		if (rq->type == 0 && rq->xid != 0)  /* m2a RPC Call */
-		{
-			printk(KERN_INFO "[RPC] AMSS to LINUX: prog = 0x%08x, proc = 0x%x, xid = 0x%x\n", 
-			be32_to_cpu(rq->prog), 
-			be32_to_cpu(rq->procedure),
-			be32_to_cpu(rq->xid));
-		}
-	}
-	/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00+] */
-	
 	spin_lock_irqsave(&local_endpoints_lock, flags);
 	ept = rpcrouter_lookup_local_endpoint(hdr.dst_cid);
 	if (!ept) {
@@ -1601,17 +1581,6 @@ int msm_rpc_write(struct msm_rpc_endpoint *ept, void *buffer, int count)
 
 	if (rq->type == 0) {
 		/* RPC CALL */
-		
-		/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00+[ */
-		if (debug_rpcmsg_enable)
-		{
-			printk (KERN_INFO "[RPC] LINUX to AMSS: prog = 0x%08x, proc = 0x%x, xid = 0x%x\n", 
-				be32_to_cpu(((struct rpc_request_hdr *)buffer)->prog), 
-				be32_to_cpu(((struct rpc_request_hdr *)buffer)->procedure),
-				be32_to_cpu(((struct rpc_request_hdr *)buffer)->xid));
-		}
-		/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00+] */
-		
 		if (count < (sizeof(uint32_t) * 6)) {
 			printk(KERN_ERR
 			       "rr_write: rejecting runt call packet\n");

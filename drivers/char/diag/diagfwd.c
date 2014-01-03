@@ -45,10 +45,6 @@
 #define ALL_SSID		-1
 #define MAX_SSID_PER_RANGE	100
 
-//+{WP5-TT-ON_DEVICE_QXDM-01
-#include <mach/dbgcfgtool.h>
-//WP5-TT-ON_DEVICE_QXDM-01}+
-
 int diag_debug_buf_idx;
 unsigned char diag_debug_buf[1024];
 static unsigned int buf_tbl_size = 8; /*Number of entries in table of buffers */
@@ -1823,43 +1819,10 @@ static int diag_smd_probe(struct platform_device *pdev)
 {
 	int r = 0;
 
-//+{WP5-TT-ON_DEVICE_QXDM-01
-#ifndef CONFIG_FIH_FTM
-	int cfg_val;
-	//  unsigned int keyinfo = (*((unsigned int *)(MSM_SHARED_RAM_BASE + 0x220C)));
-	r = DbgCfgGetByBit(DEBUG_MODEM_LOGGER_CFG, (int*)&cfg_val);
-	if ((r == 0) && (cfg_val == 1) /*&& (keyinfo&KEY_MASK) != RECOVERY_KEY*/) {
-		printk(KERN_INFO "FIH:Embedded QXDM Enabled. %s", __FUNCTION__);
-	} else {
-		printk(KERN_ERR "FIH:Fail to call DbgCfgGetByBit(), ret=%d or Embedded QxDM disabled, cfg_val=%d.", r, cfg_val);
-		printk(KERN_ERR "FIH:Default: Embedded QXDM Disabled.\n");
-		if (pdev->id == 0) {
-			if (driver->buf_in_1 == NULL || driver->buf_in_2 == NULL) {
-				if (driver->buf_in_1 == NULL)
-					driver->buf_in_1 = kzalloc(IN_BUF_SIZE, GFP_KERNEL);
-				if (driver->buf_in_2 == NULL)
-					driver->buf_in_2 = kzalloc(IN_BUF_SIZE, GFP_KERNEL);
-				if (driver->buf_in_1 == NULL || driver->buf_in_2 == NULL)
-					return 0;
-				else {
-					r = smd_open("DIAG", &driver->ch, driver, diag_smd_notify);
-					ch_temp = driver->ch;
-				}
-			}
-			else {
-				r = smd_open("DIAG", &driver->ch, driver, diag_smd_notify);
-				ch_temp = driver->ch;
-			}
-		}
-	}
-#else
-//WP5-TT-ON_DEVICE_QXDM-01}+
 	if (pdev->id == SMD_APPS_MODEM) {
 		r = smd_open("DIAG", &driver->ch, driver, diag_smd_notify);
 		ch_temp = driver->ch;
 	}
-#endif //+WP5-TT-ON_DEVICE_QXDM-01	
-		
 #if defined(CONFIG_MSM_N_WAY_SMD)
 	if (pdev->id == SMD_APPS_QDSP) {
 		r = smd_named_open_on_edge("DIAG", SMD_APPS_QDSP

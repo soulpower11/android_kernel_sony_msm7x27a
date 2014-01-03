@@ -72,11 +72,8 @@ msm_mddi_ext-objs := mddihost_e.o mddi_ext.o
 obj-$(CONFIG_FB_MSM_EXTMDDI) += msm_mddi_ext.o
 
 # MIPI gereric
-# msm_mipi-objs := mipi_dsi.o mipi_dsi_host.o
-# obj-$(CONFIG_FB_MSM_MIPI_DSI) += msm_mipi.o
-# ifeq ($(CONFIG_FB_MSM_MIPI_DSI),y)
-obj-y += mipi_dsi.o mipi_dsi_host.o
-# endif
+msm_mipi-objs := mipi_dsi.o mipi_dsi_host.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI) += msm_mipi.o
 
 # MIPI manufacture
 obj-$(CONFIG_FB_MSM_MIPI_DSI_TOSHIBA) += mipi_toshiba.o
@@ -88,9 +85,11 @@ obj-$(CONFIG_FB_MSM_MIPI_DSI_NT35510) += mipi_NT35510.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_NT35516) += mipi_truly_tft540960_1_e.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_SIMULATOR) += mipi_simulator.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_ILITEK) += mipi_ilitek.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_HIMAX) += mipi_himax.o
 
 # MIPI Bridge
 obj-$(CONFIG_FB_MSM_MIPI_DSI_TC358764_DSI2LVDS) += mipi_tc358764_dsi2lvds.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_ILI9486) += mipi_ili9486.o
 
 # TVEnc
 obj-$(CONFIG_FB_MSM_TVOUT) += tvenc.o
@@ -152,10 +151,14 @@ obj-$(CONFIG_FB_MSM_MIPI_NT35516_VIDEO_QHD_PT) += mipi_truly_tft540960_1_e_video
 obj-$(CONFIG_FB_MSM_MIPI_SIMULATOR_VIDEO) += mipi_simulator_video.o
 obj-$(CONFIG_FB_MSM_MIPI_CHIMEI_WXGA) += mipi_chimei_wxga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_CHIMEI_WUXGA) += mipi_chimei_wuxga.o
-obj-$(CONFIG_FB_MSM_MIPI_ORISE_VIDEO_FWVGA_PT) += mipi_orise_video_fwvga_pt.o
-obj-$(CONFIG_FB_MSM_MIPI_ORISE_CMD_FWVGA_PT) += mipi_orise_cmd_fwvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_ILI9486_CMD_WVGA_PT) += mipi_ili9486_cmd_wvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_ILITEK_VIDEO_HVGA_PT) += mipi_ilitek_video_hvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_ILITEK_CMD_HVGA_PT) += mipi_ilitek_cmd_hvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_HIMAX_VIDEO_HVGA_PT) += mipi_himax_video_hvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_HIMAX_CMD_HVGA_PT) += mipi_himax_cmd_hvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_ORISE_VIDEO_FWVGA_PT) += mipi_orise_video_fwvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_ORISE_CMD_FWVGA_PT) += mipi_orise_cmd_fwvga_pt.o
+
 endif
 
 obj-$(CONFIG_FB_MSM_LCDC_PANEL) += lcdc_panel.o

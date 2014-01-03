@@ -183,7 +183,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	struct sockaddr_l2 la;
 	int len, err = 0;
 
-	BT_INFO("%s: sk %p type %d mode %d state %d", __FUNCTION__, sk, sk->sk_type,
+	BT_DBG("sk %p type %d mode %d state %d", sk, sk->sk_type,
 		l2cap_pi(sk)->mode, sk->sk_state);
 
 	if (!addr || alen < sizeof(addr->sa_family) ||

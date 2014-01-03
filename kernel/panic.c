@@ -27,8 +27,6 @@
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
 
-
-
 /* Machine specific panic information string */
 char *mach_panic_string;
 
@@ -81,7 +79,6 @@ void panic(const char *fmt, ...)
 	va_list args;
 	long i, i_next = 0;
 	int state = 0;
-
 
 	/*
 	 * Disable local interrupts. This will prevent panic_smp_self_stop
@@ -156,7 +153,6 @@ void panic(const char *fmt, ...)
 			}
 			mdelay(PANIC_TIMER_STEP);
 		}
-
 	}
 	if (panic_timeout != 0) {
 		/*
@@ -164,10 +160,7 @@ void panic(const char *fmt, ...)
 		 * shutting down.  But if there is a chance of
 		 * rebooting the system it will be rebooted.
 		 */
-		/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00*[ */
-		//emergency_restart();
-		machine_restart("panic");
-		/* FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00*] */
+		emergency_restart();
 	}
 #ifdef __sparc__
 	{

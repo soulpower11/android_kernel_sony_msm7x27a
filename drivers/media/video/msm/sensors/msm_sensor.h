@@ -25,7 +25,11 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <mach/camera.h>
+#ifdef CONFIG_FIH_CAMERA
 #include <mach/gpio.h>
+#else
+#include <linux/gpio.h>
+#endif
 #include <media/msm_camera.h>
 #include <media/v4l2-subdev.h>
 #include "msm_camera_i2c.h"
@@ -73,7 +77,9 @@ struct msm_sensor_output_reg_addr_t {
 struct msm_sensor_id_info_t {
 	uint16_t sensor_id_reg_addr;
 	uint16_t sensor_id;
+#ifdef CONFIG_ISX006
 	uint16_t sensor_id2; /*MTD-MM-SL-CameraPorting-00+ */
+#endif
 };
 
 struct msm_sensor_exp_gain_info_t {
@@ -94,6 +100,7 @@ struct msm_sensor_reg_t {
 	uint8_t group_hold_off_conf_size;
 	struct msm_camera_i2c_conf_array *init_settings;
 	uint8_t init_size;
+#ifdef CONFIG_ISX006
 	/*MTD-MM-SL-CameraPorting-00+{ */
 	struct msm_camera_i2c_reg_conf *preload2_settings;
 	uint16_t preload2_size;
@@ -128,6 +135,10 @@ struct msm_sensor_reg_t {
 	struct msm_camera_i2c_reg_conf *fps_30_settings;
 	uint16_t fps_30_size;		
 	/*MTD-MM-SL-FixMMSRecord-01+} */
+#else
+    struct msm_camera_i2c_conf_array *init_settings_1;
+	uint8_t init_size_1;
+#endif
 	struct msm_camera_i2c_conf_array *mode_settings;
 	struct msm_camera_i2c_conf_array *no_effect_settings;
 	struct msm_sensor_output_info_t *output_settings;
@@ -166,17 +177,21 @@ struct msm_sensor_v4l2_ctrl_info_t {
 
 struct msm_sensor_fn_t {
 	void (*sensor_start_stream) (struct msm_sensor_ctrl_t *);
+#ifdef CONFIG_ISX006
 	int32_t (*sensor_start_stream_1) (struct msm_sensor_ctrl_t *); /*MTD-MM-SL-CameraPorting-00+ */
-	#ifndef CONFIG_FIH_CAMERA
-	void (*sensor_stop_stream) (struct msm_sensor_ctrl_t *);
-	#else
 	int32_t (*sensor_stop_stream) (struct msm_sensor_ctrl_t *); /*MTD-MM-SL-ImproveFrontCamera-00+ */
-	#endif
+#else
+	void (*sensor_stop_stream) (struct msm_sensor_ctrl_t *);
+#endif
 	void (*sensor_group_hold_on) (struct msm_sensor_ctrl_t *);
 	void (*sensor_group_hold_off) (struct msm_sensor_ctrl_t *);
 
 	int32_t (*sensor_set_fps) (struct msm_sensor_ctrl_t *,
+#ifdef CONFIG_ISX006
 			uint16_t ); /*MTD-MM-SL-FixMMSRecord-00* */ //struct fps_cfg *
+#else
+			struct fps_cfg *);
+#endif
 	int32_t (*sensor_write_exp_gain) (struct msm_sensor_ctrl_t *,
 			uint16_t, uint32_t);
 	int32_t (*sensor_write_snapshot_exp_gain) (struct msm_sensor_ctrl_t *,
@@ -185,10 +200,12 @@ struct msm_sensor_fn_t {
 			int update_type, int rt);
 	int32_t (*sensor_csi_setting) (struct msm_sensor_ctrl_t *,
 			int update_type, int rt);
+#ifdef CONFIG_ISX006
 	/*MTD-MM-SL-CameraPorting-00+{ */
 	int32_t (*sensor_init_setting) (struct msm_sensor_ctrl_t *,
 			int update_type, int rt);
 	/*MTD-MM-SL-CameraPorting-00+} */
+#endif
 	int32_t (*sensor_set_sensor_mode)
 			(struct msm_sensor_ctrl_t *, int, int);
 	int32_t (*sensor_mode_init) (struct msm_sensor_ctrl_t *,
@@ -204,6 +221,10 @@ struct msm_sensor_fn_t {
 		(struct msm_sensor_ctrl_t *s_ctrl, uint16_t res);
 	int32_t (*sensor_get_csi_params)(struct msm_sensor_ctrl_t *,
 		struct csi_lane_params_t *);
+#ifndef CONFIG_ISX006
+	int (*sensor_config_brithness) (struct msm_sensor_ctrl_t *,  void __user * );
+	int32_t (*sensor_set_special_effect) (struct msm_sensor_ctrl_t *, uint32_t );
+#endif
 };
 
 struct msm_sensor_csi_info {
@@ -318,11 +339,13 @@ long msm_sensor_subdev_ioctl(struct v4l2_subdev *sd,
 int32_t msm_sensor_get_csi_params(struct msm_sensor_ctrl_t *s_ctrl,
 		struct csi_lane_params_t *sensor_output_info);
 
+#ifdef CONFIG_ISX006
 /*MTD-MM-SL-ImproveSnapshot-00+{ */
 extern int fih_enable_mclk(struct msm_sensor_ctrl_t *s_ctrl);
 
 extern int fih_disable_mclk(struct msm_sensor_ctrl_t *s_ctrl);
 /*MTD-MM-SL-ImproveSnapshot-00+} */
+#endif
 
 struct msm_sensor_ctrl_t *get_sctrl(struct v4l2_subdev *sd);
 
@@ -335,4 +358,6 @@ struct msm_sensor_ctrl_t *get_sctrl(struct v4l2_subdev *sd);
 #define VIDIOC_MSM_SENSOR_CSID_INFO\
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 12, struct msm_sensor_csi_info *)
 
+#define VIDIOC_MSM_SENSOR_CFG_BRITHNESS \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 13, void __user *)
 #endif

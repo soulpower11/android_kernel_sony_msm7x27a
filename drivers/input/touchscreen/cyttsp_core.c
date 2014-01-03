@@ -321,11 +321,6 @@ static struct cyttsp_testmode_data test_mode_data;
 struct cyttsp g_ts;
 #endif
 /*FIH-MTD-PERIPHERAL-CH-ESD-00++]*/
-/* MM-VH-DISPLAY-JB04*[ */
-#ifdef CONFIG_FIH_UI_KPI_METER
-struct cyttsp *pts;
-#endif
-/* MM-VH-DISPLAY-JB04*] */
 
 /*FIH-MTD-PERIPHERAL-CH-2016-00+[*/
 static int cyttsp_wr_reg(struct cyttsp *ts, u8 reg_id, u8 reg_data);
@@ -3114,155 +3109,6 @@ static struct attribute_group tma340_properties_attr_group = {
 #endif
 /*FIH-MTD-PERIPHERAL-CH-TRACKING_ID-00++]*/
 
-/* MM-VH-DISPLAY-JB04+[ */
-#ifdef CONFIG_FIH_UI_KPI_METER
-int dummy_touch(int id, int x, int y, int z, int delay_time_us)
-{
-	input_report_abs(pts->input, ABS_MT_TRACKING_ID,
-					0);
-	input_report_abs(pts->input, ABS_MT_TOUCH_MAJOR,
-				z);
-	input_report_abs(pts->input, ABS_MT_PRESSURE,
-				z);
-	input_report_abs(pts->input, ABS_MT_POSITION_X,
-					x);
-	input_report_abs(pts->input, ABS_MT_POSITION_Y,
-					y);
-	input_mt_sync(pts->input);
-	input_sync(pts->input);
-	
-	if(delay_time_us != 0)
-		msleep(delay_time_us);
-		
-	return 0;
-}
-
-static ssize_t dummy_slide_read(struct device *dev,
-        struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", 0);
-}
-enum{
-	DUMMY_SLIDE_DISABLE,
-	DUMMY_SLIDE_LEFT_TO_RIGHT,
-	DUMMY_SLIDE_RIGHT_TO_LEFT,
-	DUMMY_SLIDE_AUTO,
-	NUM_DUMMY_SLIDE
-};
-
-#define DUMMY_SLIDER_INTERVAL_HZ (HZ/10)
-static int autoDummySlider_interval =  DUMMY_SLIDER_INTERVAL_HZ;
-struct delayed_work	autoDummySlider;
-int dummySliderMode = 0;
-static void dummy_slider(struct work_struct *work)
-{
-	/* LEFT TO RIGHT */
-	dummy_touch(0, 1023, 630, 71, 40);
-	dummy_touch(0, 1020, 629, 100, 0);
-	dummy_touch(0, 1006, 629, 161, 20);
-	dummy_touch(0, 976, 627, 220, 30);
-	dummy_touch(0, 920, 621, 255, 20);
-	dummy_touch(0, 876, 614, 255, 20);
-	dummy_touch(0, 827, 605, 251, 20);
-	dummy_touch(0, 758, 596, 226, 20);
-	dummy_touch(0, 688, 591, 206, 20);
-	dummy_touch(0, 615, 587, 188, 20);
-	dummy_touch(0, 534, 590, 167, 20);
-	dummy_touch(0, 422, 598, 130, 20);
-	dummy_touch(0, 307, 614, 78, 20);
-
-	/* RIGHT TO LEFT */
-	/*
-	dummy_touch(0, 1023, 593, 38, 40);
-	dummy_touch(0, 1021, 594, 101, 0);
-	dummy_touch(0, 980, 596, 251, 20);
-	dummy_touch(0, 823, 601, 255, 30);
-	dummy_touch(0, 602, 623, 255, 20);
-	*/
-
-	dummy_touch(0, 307, 614, 78, 20);
-	dummy_touch(0, 422, 598, 130, 20);
-	dummy_touch(0, 534, 590, 167, 20);
-	dummy_touch(0, 615, 587, 188, 20);
-	dummy_touch(0, 688, 591, 206, 20);
-	dummy_touch(0, 758, 596, 226, 20);
-	dummy_touch(0, 827, 605, 251, 20);
-	dummy_touch(0, 876, 614, 255, 20);
-	dummy_touch(0, 920, 621, 255, 20);
-	dummy_touch(0, 976, 627, 220, 30);
-	dummy_touch(0, 1006, 629, 161, 20);
-	dummy_touch(0, 1020, 629, 100, 0);
-	dummy_touch(0, 1023, 630, 71, 40);
-	
-	input_mt_sync(pts->input);
-	input_sync(pts->input);
-
-	schedule_delayed_work(&autoDummySlider, autoDummySlider_interval);
-}
-/* MM-VH-DISPLAY-JB07*[ */
-static ssize_t dummy_slide_write(struct device *dev,
-        struct device_attribute *attr, const char *buf, size_t size)
-{
-	ssize_t ret = strnlen(buf, PAGE_SIZE);
-	int cmd;
-	long data = 0;
-	int error = strict_strtol(buf, 10, &data);
-
-	if (error) {
-		pr_err("[DISPLAY]%s: failure, buf <%s>, data <%ld>, err <%d>\n",
-				__func__, buf, data, error);
-	}
-
-	cmd = (int)data;
-	printk("+%s, cmd = %d\r\n", __func__, cmd);
-
-	switch(cmd)
-	{
-		case DUMMY_SLIDE_DISABLE:
-			cancel_delayed_work_sync(&autoDummySlider);
-			break;
-		case DUMMY_SLIDE_LEFT_TO_RIGHT:
-			dummy_touch(0, 1023, 630, 71, 40);
-			dummy_touch(0, 1020, 629, 100, 0);
-			dummy_touch(0, 1006, 629, 161, 20);
-			dummy_touch(0, 976, 627, 220, 30);
-			dummy_touch(0, 920, 621, 255, 20);
-			dummy_touch(0, 876, 614, 255, 20);
-			dummy_touch(0, 827, 605, 251, 20);
-			dummy_touch(0, 758, 596, 226, 20);
-			dummy_touch(0, 688, 591, 206, 20);
-			dummy_touch(0, 615, 587, 188, 20);
-			dummy_touch(0, 534, 590, 167, 20);
-			dummy_touch(0, 422, 598, 130, 20);
-			dummy_touch(0, 307, 614, 78, 20);
-			break;
-		case DUMMY_SLIDE_RIGHT_TO_LEFT:
-			dummy_touch(0, 1021, 593, 38, 40);
-			dummy_touch(0, 1023, 594, 101, 0);
-			dummy_touch(0, 980, 596, 251, 20);
-			dummy_touch(0, 823, 601, 255, 30);
-			dummy_touch(0, 602, 623, 255, 20);
-			dummy_touch(0, 667, 292, 255, 20);
-			break;
-		case DUMMY_SLIDE_AUTO:
-			schedule_delayed_work(&autoDummySlider, autoDummySlider_interval);
-			break;
-
-		default:
-			break;
-	};
-
-	dummySliderMode = cmd;
-	input_mt_sync(pts->input);
-	input_sync(pts->input);
-	
-    return ret;
-}
-/* MM-VH-DISPLAY-JB07*] */
-static DEVICE_ATTR(dummy_slide, 0644, dummy_slide_read, dummy_slide_write);
-#endif
-/* MM-VH-DISPLAY-JB04+] */
-
 /*FIH-MTD-PERIPHERAL-CH-ESD-00++[*/	
 void *cyttsp_core_init(struct cyttsp_bus_ops *bus_ops, struct device *pdev)
 {
@@ -3306,13 +3152,6 @@ void *cyttsp_core_init(struct cyttsp_bus_ops *bus_ops, struct device *pdev)
 	if (g_ts.platform_data->init)
 		retval = g_ts.platform_data->init(1);
 #endif
-
-/* MM-VH-DISPLAY-JB04+[ */
-#ifdef CONFIG_FIH_UI_KPI_METER
-	pts = ts;
-	INIT_DELAYED_WORK(&autoDummySlider, dummy_slider);
-#endif
-/* MM-VH-DISPLAY-JB04+] */
 
 	if (retval) {
 		DBG_ERR("%s: platform init failed! \n", __func__);
@@ -3537,15 +3376,6 @@ void *cyttsp_core_init(struct cyttsp_bus_ops *bus_ops, struct device *pdev)
 			__func__);
 		goto device_create_error;
 	}
-/* MM-VH-DISPLAY-JB04+[ */
-#ifdef CONFIG_FIH_UI_KPI_METER
-	retval = device_create_file(pdev, &dev_attr_dummy_slide);
-	if (retval) {
-		pr_err("[DISPLAY] %s: create dev_attr_dummy_slide failed\n",
-				__func__);
-	}
-#endif
-/* MM-VH-DISPLAY-JB04+] */
 
 /* FIH-SW1-PERIPHERAL-OH-TAP_TOUCH_TestMode-00+{ */	
 #ifdef TEST_MODE

@@ -12,15 +12,9 @@
 
 #include "msm_camera_i2c.h"
 
-/*MTD-MM-SL-ImproveMainCamera-00+{ */
 #include <linux/delay.h>//For hr_msleep()
 
-#ifdef CONFIG_FIH_HR_MSLEEP
-#define cam_msleep hr_msleep
-#else
 #define cam_msleep msleep
-#endif
-/*MTD-MM-SL-ImproveMainCamera-00+} */
 
 int32_t msm_camera_i2c_rxdata(struct msm_camera_i2c_client *dev_client,
 	unsigned char *rxdata, int data_length)
@@ -42,13 +36,12 @@ int32_t msm_camera_i2c_rxdata(struct msm_camera_i2c_client *dev_client,
 		},
 	};
 	rc = i2c_transfer(dev_client->client->adapter, msgs, 2);
-	if (rc < 0){
-		printk("msm_camera_i2c_rxdata failed 0x%x\n", saddr);
-	}
+	if (rc < 0)
+		S_I2C_DBG("msm_camera_i2c_rxdata failed 0x%x\n", saddr);
 	return rc;
 }
 
-/*MTD-MM-SL-ImproveMainCamera-00+{ */
+#ifdef CONFIG_FIH_CAMERA
 int32_t msm_camera_i2c_rxdata_nonAck(struct msm_camera_i2c_client *dev_client,
 	unsigned char *rxdata, int data_length)
 {
@@ -80,7 +73,7 @@ int32_t msm_camera_i2c_rxdata_nonAck(struct msm_camera_i2c_client *dev_client,
 	printk("msm_camera_i2c_rxdata_nonAck timeout 0x%x\n", saddr);
 	return -EIO;
 }
-/*MTD-MM-SL-ImproveMainCamera-00+} */
+#endif
 
 int32_t msm_camera_i2c_txdata(struct msm_camera_i2c_client *dev_client,
 				unsigned char *txdata, int length)
@@ -96,13 +89,12 @@ int32_t msm_camera_i2c_txdata(struct msm_camera_i2c_client *dev_client,
 		 },
 	};
 	rc = i2c_transfer(dev_client->client->adapter, msg, 1);
-	if (rc < 0){
-		printk("msm_camera_i2c_txdata faild 0x%x\n", saddr);
-	}
+	if (rc < 0)
+		S_I2C_DBG("msm_camera_i2c_txdata faild 0x%x\n", saddr);
 	return 0;
 }
 
-/*MTD-MM-SL-ImproveMainCamera-00+{ */
+#ifdef CONFIG_FIH_CAMERA
 int32_t msm_camera_i2c_txdata_nonAck(struct msm_camera_i2c_client *dev_client,
 				unsigned char *txdata, int length)
 {
@@ -128,7 +120,7 @@ int32_t msm_camera_i2c_txdata_nonAck(struct msm_camera_i2c_client *dev_client,
 	printk("msm_camera_i2c_txdata_nonAck timeout 0x%x\n", saddr);
 	return 0;
 }
-/*MTD-MM-SL-ImproveMainCamera-00+} */
+#endif
 
 int32_t msm_camera_i2c_write(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint16_t data,
@@ -144,7 +136,7 @@ int32_t msm_camera_i2c_write(struct msm_camera_i2c_client *client,
 		return rc;
 
 	S_I2C_DBG("%s reg addr = 0x%x data type: %d\n",
-			  __func__, addr, data_type);		
+			  __func__, addr, data_type);
 	if (client->addr_type == MSM_CAMERA_I2C_BYTE_ADDR) {
 		buf[0] = addr;
 		S_I2C_DBG("%s byte %d: 0x%x\n", __func__, len, buf[len]);
@@ -175,7 +167,7 @@ int32_t msm_camera_i2c_write(struct msm_camera_i2c_client *client,
 	return rc;
 }
 
-/*MTD-MM-SL-CameraPorting-00+{ */
+#ifdef CONFIG_FIH_CAMERA
 int32_t msm_camera_i2c_write_invert(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint16_t data,
 	enum msm_camera_i2c_data_type data_type)
@@ -221,9 +213,7 @@ int32_t msm_camera_i2c_write_invert(struct msm_camera_i2c_client *client,
 		S_I2C_DBG("%s fail\n", __func__);
 	return rc;
 }
-/*MTD-MM-SL-CameraPorting-00+} */
 
-/*MTD-MM-SL-ImproveMainCamera-00+{ */
 int32_t msm_camera_i2c_write_invert_nonAck(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint16_t data,
 	enum msm_camera_i2c_data_type data_type)
@@ -269,7 +259,7 @@ int32_t msm_camera_i2c_write_invert_nonAck(struct msm_camera_i2c_client *client,
 		S_I2C_DBG("%s fail\n", __func__);
 	return rc;
 }
-/*MTD-MM-SL-ImproveMainCamera-00+} */
+#endif
 
 int32_t msm_camera_i2c_write_seq(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint8_t *data, uint16_t num_byte)
@@ -437,7 +427,6 @@ int32_t msm_camera_i2c_poll(struct msm_camera_i2c_client *client,
 	return rc;
 }
 
-/*MTD-MM-SL-ImproveFrontCamera-00*{ */
 int32_t msm_camera_i2c_write_tbl(struct msm_camera_i2c_client *client,
 	struct msm_camera_i2c_reg_conf *reg_conf_tbl, uint16_t size,
 	enum msm_camera_i2c_data_type data_type)
@@ -463,6 +452,7 @@ int32_t msm_camera_i2c_write_tbl(struct msm_camera_i2c_client *client,
 					client,
 					reg_conf_tbl->reg_addr,
 					reg_conf_tbl->reg_data, dt);
+#ifdef CONFIG_FIH_CAMERA
 				if (reg_conf_tbl->reg_addr == 0x001A && reg_conf_tbl->reg_data== 0x0106){
 					rc = 0x1;
 					printk("msm_camera_i2c_write_tbl, ByPass: Write Reg_0x001A to 0x0106, no return ACK !\n");	
@@ -515,9 +505,7 @@ int32_t msm_camera_i2c_write_tbl(struct msm_camera_i2c_client *client,
 	//printk ("msm_camera_i2c_write_tbl, End: Write count %d, addr 0x%x, val 0x%x !\n", i, reg_conf_tbl->reg_addr, reg_conf_tbl->reg_data); 
 	return rc;
 }
-/*MTD-MM-SL-ImproveFrontCamera-00*} */
 
-/*MTD-MM-SL-CameraPorting-00+{ */
 int32_t msm_camera_i2c_write_tbl_invert(struct msm_camera_i2c_client *client,
 	struct msm_camera_i2c_reg_conf *reg_conf_tbl, uint16_t size,
 	enum msm_camera_i2c_data_type data_type)
@@ -542,6 +530,7 @@ int32_t msm_camera_i2c_write_tbl_invert(struct msm_camera_i2c_client *client,
 					client,
 					reg_conf_tbl->reg_addr,
 					reg_conf_tbl->reg_data, dt);
+#endif
 				break;
 			case MSM_CAMERA_I2C_SET_BYTE_MASK:
 				rc = msm_camera_i2c_set_mask(client,
@@ -586,7 +575,6 @@ int32_t msm_camera_i2c_write_tbl_invert(struct msm_camera_i2c_client *client,
 	}
 	return rc;
 }
-/*MTD-MM-SL-CameraPorting-00+} */
 
 int32_t msm_camera_i2c_read(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint16_t *data,
@@ -620,8 +608,8 @@ int32_t msm_camera_i2c_read(struct msm_camera_i2c_client *client,
 	S_I2C_DBG("%s addr = 0x%x data: 0x%x\n", __func__, addr, *data);
 	return rc;
 }
-/*MTD-MM-SL-SupportFlash-01*{ */
-/*MTD-MM-UW-set AF mode-00*{ */
+
+#ifdef CONFIG_FIH_CAMERA
 int32_t msm_camera_i2c_read_invert(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint16_t *data,
 	enum msm_camera_i2c_data_type data_type)
@@ -657,10 +645,7 @@ int32_t msm_camera_i2c_read_invert(struct msm_camera_i2c_client *client,
 	S_I2C_DBG("%s addr = 0x%x data: 0x%x\n", __func__, addr, *data);
 	return rc;
 }
-/*MTD-MM-UW-set AF mode-00*} */
-/*MTD-MM-SL-SupportFlash-01*} */
 
-/*MTD-MM-SL-ImproveMainCamera-00+{ */
 int32_t msm_camera_i2c_read_invert_nonAck(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint16_t *data,
 	enum msm_camera_i2c_data_type data_type)
@@ -696,7 +681,7 @@ int32_t msm_camera_i2c_read_invert_nonAck(struct msm_camera_i2c_client *client,
 	S_I2C_DBG("%s addr = 0x%x data: 0x%x\n", __func__, addr, *data);
 	return rc;
 }
-/*MTD-MM-SL-ImproveMainCamera-00+} */
+#endif
 
 int32_t msm_camera_i2c_read_seq(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint8_t *data, uint16_t num_byte)
@@ -749,7 +734,7 @@ int32_t msm_sensor_write_conf_array(struct msm_camera_i2c_client *client,
 
 int32_t msm_sensor_write_enum_conf_array(struct msm_camera_i2c_client *client,
 			struct msm_camera_i2c_enum_conf_array *conf,
-			int enum_val) /*MTD-MM-SL-AddBrightness-00* *///uint16_t enum_val
+			uint16_t enum_val)
 {
 	int32_t rc = -1, i;
 
@@ -763,7 +748,7 @@ int32_t msm_sensor_write_enum_conf_array(struct msm_camera_i2c_client *client,
 		i = conf->num_enum - 1;
 
 	if (i >= conf->num_index)
-		return rc;		
+		return rc;
 	rc = msm_sensor_write_all_conf_array(client,
 		&conf->conf[i*conf->num_conf], conf->num_conf);
 
@@ -789,7 +774,7 @@ int32_t msm_sensor_write_all_conf_array(struct msm_camera_i2c_client *client,
 	return rc;
 }
 
-/*MTD-MM-SL-CameraPorting-00+{ */
+#ifdef CONFIG_FIH_CAMERA
 int32_t msm_sensor_write_conf_array_invert(struct msm_camera_i2c_client *client,
 			struct msm_camera_i2c_conf_array *array, uint16_t index)
 {
@@ -817,5 +802,5 @@ int32_t msm_sensor_write_all_conf_array_invert(struct msm_camera_i2c_client *cli
 	}
 	return rc;
 }
-/*MTD-MM-SL-CameraPorting-00+} */
+#endif
 

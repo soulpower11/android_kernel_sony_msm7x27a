@@ -35,9 +35,6 @@
 #include "mach/rpc_nv.h"
 #endif
 //FIH-SW1-PERIPHERAL-AC-PSENSOR_SENSITIVITY-01+}
-#include <linux/wakelock.h>
-#include <linux/err.h>
-
 struct qpdss702_data
 {
     struct delayed_work work;
@@ -59,11 +56,6 @@ struct qpdss702_data
     unsigned int nvInvalid;
 #endif
 //FIH-SW1-PERIPHERAL-AC-PSENSOR_SENSITIVITY-01+}
-/*PERI-AC-suspen_noirq-00+{*/
-    int suspend_flag;
-    int wakeup_flag;
-    struct wake_lock ps_wake_lock;
-/*PERI-AC-suspen_noirq-00+}*/
 };
 
 static int qpdss702_set_mode(struct i2c_client *client, int mode)
@@ -426,13 +418,6 @@ static void qpdss702_irq_work(struct work_struct *work)
 
     if (qpdss702->enable)
     {
-        /*PERI-AC-suspen_noirq-00+{*/
-        if(value && qpdss702->suspend_flag)
-        {
-            qpdss702->wakeup_flag = 1;
-        }
-        /*PERI-AC-suspen_noirq-00+}*/
-
         input_report_abs(qpdss702->input, EVENT_TYPE_PROXIMITY, value);
         input_sync(qpdss702->input);
         PSENSOR_DEBUG(LEVEL0, "GPIO(%d) = %d, input_report_abs(%d), delay = %d", GPIO_ALPS_OUT, value, value, qpdss702->delay);
@@ -496,23 +481,16 @@ static void qpdss702_input_delete(struct qpdss702_data *qpdss702)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void qpdss702_early_suspend(struct early_suspend * h)
 {
-    struct qpdss702_data *data = container_of(h, struct qpdss702_data, early_suspend);
-    int value = gpio_get_value(GPIO_ALPS_OUT);
-    if(!value && data->enable)
-    {
-        data->suspend_flag =1;
-    }
+    //struct qpdss702_data *data = container_of(h, struct qpdss702_data, early_suspend);
+
     PSENSOR_DEBUG(LEVEL0, "Done.");
     return;
 }
 
 static void qpdss702_late_resume(struct early_suspend *h)
 {
-/*PERI-AC-suspen_noirq-00+{*/
-    struct qpdss702_data *data = container_of(h, struct qpdss702_data, early_suspend);
-    data->suspend_flag = 0;
-    data->wakeup_flag = 0;
-/*PERI-AC-suspen_noirq-00+}*/
+    //struct qpdss702_data *data = container_of(h, struct qpdss702_data, early_suspend);
+
     PSENSOR_DEBUG(LEVEL0, "Done");
     return;
 }
@@ -521,50 +499,23 @@ static void qpdss702_late_resume(struct early_suspend *h)
 #ifdef CONFIG_PM
 static int qpdss702_suspend(struct device *dev)
 {
-/*PERI-AC-suspen_noirq-00+{*/
-    struct qpdss702_data *data = dev_get_drvdata(dev);
-    int value = gpio_get_value(GPIO_ALPS_OUT);
-    if(data->wakeup_flag && value && data->enable)
-    {
-        wake_lock_timeout(&data->ps_wake_lock, 1*HZ);
-        return -EAGAIN;
-    }
-/*PERI-AC-suspen_noirq-00+}*/
-    PSENSOR_DEBUG(LEVEL0, "suspen_flag=%x, value=%x,Done.",data->suspend_flag,value);
+    //struct qpdss702_data *data = dev_get_drvdata(dev);
+
+    PSENSOR_DEBUG(LEVEL0, "Done.");
     return 0;
 }
 
 static int qpdss702_resume(struct device *dev)
 {
-/*PERI-AC-suspen_noirq-00+{*/
-    struct qpdss702_data *data = dev_get_drvdata(dev);
-    data->wakeup_flag = 0;
-/*PERI-AC-suspen_noirq-00+}*/
+    //struct qpdss702_data *data = dev_get_drvdata(dev);
+
     PSENSOR_DEBUG(LEVEL0, "Done.");
     return 0;
 }
 
-/*PERI-AC-suspen_noirq-00+{*/
-static int qpdss702_suspend_noirq(struct device *dev)
-{
-    struct qpdss702_data *data = dev_get_drvdata(dev);
-    int value = gpio_get_value(GPIO_ALPS_OUT);
-    if(data->wakeup_flag && value && data->enable)
-    {
-        wake_lock_timeout(&data->ps_wake_lock, 1*HZ);
-        return -EAGAIN;
-    }
-    PSENSOR_DEBUG(LEVEL0, "suspen_flag=%x, value=%x,Done.",data->suspend_flag,value);
-    return 0;
-}
-/*PERI-AC-suspen_noirq-00+}*/
-
 static struct dev_pm_ops qpdss702_pm_ops = {
     .suspend = qpdss702_suspend,
     .resume  = qpdss702_resume,
-/*PERI-AC-suspen_noirq-00+{*/
-    .suspend_noirq = qpdss702_suspend_noirq
-/*PERI-AC-suspen_noirq-00+}*/
 };
 #endif	/* CONFIG_PM */
 
@@ -667,9 +618,6 @@ static int qpdss702_probe(struct i2c_client *client, const struct i2c_device_id 
     if (err < 0)
         goto err_create_sysfs_failed;
 
-
-    wake_lock_init(&(data->ps_wake_lock), WAKE_LOCK_SUSPEND, "proximity");
-
     /* Register Early Suspend */
 #ifdef CONFIG_HAS_EARLYSUSPEND
     data->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 10;
@@ -758,3 +706,4 @@ MODULE_AUTHOR("FIH-SW2-PERIPHERAL FromkerGu <fromkergu@fihspec.com>");
 MODULE_DESCRIPTION("AVAGO QPDS-S702 Proximity Sensor Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
+

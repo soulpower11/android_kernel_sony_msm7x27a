@@ -336,16 +336,6 @@ int wldev_set_country(
 	if (!country_code)
 		return error;
 
-        //COMM-CD-SUPPORT_IRAN-00+[
-        if (strncmp(country_code, "IR", WLC_CNTRY_BUF_SZ) == 0)
-        {
-            /* Because of firmware is no support Iran, 
-               we need change country code to support correct channel in here. (1~13 ch) */
-            printk("Change country from IR to CN.");
-            memcpy(country_code, "CN", WLC_CNTRY_BUF_SZ);
-        }
-        //COMM-CD-SUPPORT_IRAN-00+]
-
 	error = wldev_iovar_getbuf(dev, "country", &cspec, sizeof(cspec),
 		smbuf, sizeof(smbuf), NULL);
 	if (error < 0)

@@ -211,6 +211,7 @@ static inline int msmsdcc_sps_init(struct msmsdcc_host *host) { return 0; }
 static inline void msmsdcc_sps_exit(struct msmsdcc_host *host) {}
 #endif /* CONFIG_MMC_MSM_SPS_SUPPORT */
 
+#ifndef CONFIG_FIH_PROJECT_NAN
 #include <../clock.h> //FIH-CONN-EC-WiFiRuntimeSuspend-02+
 static int msmsdcc_setup_clocks(struct msmsdcc_host *host, bool enable); //MTD_CONN_EC_Tapioca_ICS-01668+
 #define WLAN_ID   2     //FIH-CONN-EC-WiFiRuntimeSuspend-01+
@@ -218,6 +219,7 @@ static int msmsdcc_setup_clocks(struct msmsdcc_host *host, bool enable); //MTD_C
 static struct msmsdcc_host *wlan_host; /* to store struct of msmsdcc_host */
 static int wlan_driver_state = -1; /* -1:initial, 0:unloaded, 1:loaded */
 //FIH-CONN-CD-WIFI-RuntimeSuspendPlus-00+]
+#endif
 /**
  * Apply soft reset to all SDCC BAM pipes
  *
@@ -1767,13 +1769,15 @@ msmsdcc_irq(int irq, void *dev_id)
 				 * This is a wakeup interrupt so hold wakelock
 				 * until SDCC resume is handled.
 				 */
+#ifndef CONFIG_FIH_PROJECT_NAN
 				/*when using BCM4330 sultion, we used OOB to handle wake-up event
 				   So we don't use SDCC wake-up machine 
 				   suspending -> interrupt -> msmsdcc_irq -> wake_lock(&host->sdio_wlock)
 				   -> resumed -> unlock sdio_wlock
 				 */
 				if (host->plat->sdiowakeup_irq && !mmc_card_sdio(host->mmc->card)) //MTD-Connectivity-FY-JLo-04232
-				     wake_lock(&host->sdio_wlock);
+#endif
+				wake_lock(&host->sdio_wlock);
 			} else {
 				spin_unlock(&host->lock);
 				mmc_signal_sdio_irq(host->mmc);
@@ -2043,6 +2047,7 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	spin_lock_irqsave(&host->lock, flags);
 
+#ifndef CONFIG_FIH_PROJECT_NAN
     /*
      * MTD_CONN_EC_Tapioca_ICS-01668
      * Symptom: 1. Log shows warning message when sending mmc command request. It shows that mmc clock is off.
@@ -2059,6 +2064,7 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
         mutex_unlock(&host->clk_mutex);
     }
 //MTD_CONN_EC_Tapioca_ICS-01668+]
+#endif
 
 	if (host->eject) {
 		if (mrq->data && !(mrq->data->flags & MMC_DATA_READ)) {
@@ -3091,6 +3097,7 @@ msmsdcc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	unsigned long flags;
 	unsigned int clock;
 
+#ifndef CONFIG_FIH_PROJECT_NAN
 	//FIH-CONN-CD-WIFI-RuntimeSuspendPlus-00+[
 	if(host->pdev_id == WLAN_ID && wlan_driver_state == 0)
 	{
@@ -3098,6 +3105,7 @@ msmsdcc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		return;
 	}
 	//FIH-CONN-CD-WIFI-RuntimeSuspendPlus-00+]
+#endif
 
 	/*
 	 * Disable SDCC core interrupt until set_ios is completed.
@@ -5180,7 +5188,9 @@ msmsdcc_probe(struct platform_device *pdev)
 	}
 
 	host = mmc_priv(mmc);
+#ifndef CONFIG_FIH_PROJECT_NAN
 	wlan_host = host; //FIH-CONN-CD-WIFI-RuntimeSuspendPlus-00+
+#endif
 	host->pdev_id = pdev->id;
 	host->plat = plat;
 	host->mmc = mmc;
@@ -5907,6 +5917,7 @@ msmsdcc_runtime_suspend(struct device *dev)
 		/* If there is pending detect work abort runtime suspend */
 		if (unlikely(work_busy(&mmc->detect.work)))
 			rc = -EAGAIN;
+#ifndef CONFIG_FIH_PROJECT_NAN
 /* FIH-CONN-EC-WiFiRuntimeSuspend-01*[ */
         else {
             if (mmc->card && mmc_card_sdio(mmc->card) && wlan_driver_state == 1) { //FIH-CONN-CD-WIFI-RuntimeSuspendPlus-00*
@@ -5921,8 +5932,11 @@ msmsdcc_runtime_suspend(struct device *dev)
                 rc = mmc_suspend_host(mmc);
             }
         }
-//            rc = mmc_suspend_host(mmc);
 /* FIH-CONN-EC-WiFiRuntimeSuspend-01*] */
+#else
+		else
+			rc = mmc_suspend_host(mmc);
+#endif
 
 		pm_runtime_put_noidle(dev);
 
@@ -5969,6 +5983,7 @@ msmsdcc_runtime_resume(struct device *dev)
 			msmsdcc_ungate_clock(host);
 		}
 
+#ifndef CONFIG_FIH_PROJECT_NAN
 /* FIH-CONN-EC-WiFiRuntimeSuspend-01+[ */
         if(mmc->card && mmc_card_sdio(mmc->card) && wlan_driver_state == 1) { //FIH-CONN-CD-WIFI-RuntimeSuspendPlus-00*
             mutex_lock(&host->clk_mutex);
@@ -5976,10 +5991,10 @@ msmsdcc_runtime_resume(struct device *dev)
             msmsdcc_setup_clocks(host, true);
             mutex_unlock(&host->clk_mutex);
         }
-        else {
+        else
 /* FIH-CONN-EC-WiFiRuntimeSuspend-01+] */
+#endif
 		mmc_resume_host(mmc);
-        } /* FIH-CONN-EC-WiFiRuntimeSuspend-01+] */
 
 		/*
 		 * FIXME: Clearing of flags must be handled in clients
@@ -6093,6 +6108,7 @@ static int msmsdcc_pm_resume(struct device *dev)
 	return rc;
 }
 
+#ifndef CONFIG_FIH_PROJECT_NAN
 //FIH-CONN-CD-WIFI-RuntimeSuspendPlus-00++[
 /* msmsdcc_host() - Export function is used for BCM4330.
                     BCM4330 wlan driver can control msmsdcc clock to save power consumption. 
@@ -6131,6 +6147,7 @@ int msmsdcc_host(int on)
 }
 EXPORT_SYMBOL(msmsdcc_host);
 //FIH-CONN-CD-WIFI-RuntimeSuspendPlus-00+]
+#endif
 
 #else
 static int msmsdcc_runtime_suspend(struct device *dev)

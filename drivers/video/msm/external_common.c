@@ -1989,8 +1989,9 @@ bool hdmi_common_get_video_format_from_drv_data(struct msm_fb_data_type *mfd)
 	} else if (hdmi_prim_resolution) {
 		format = hdmi_prim_resolution - 1;
 	} else {
-		DEV_DBG("detecting resolution from %dx%d use top two bytes of var->reserved[3]"
-			" to specify mode", mfd->var_xres, mfd->var_yres);
+		DEV_DBG("detecting resolution from %dx%d use top 2 bytes of"
+			" var->reserved[3] to specify mode", mfd->var_xres,
+			mfd->var_yres);
 		switch (mfd->var_xres) {
 		default:
 		case  640:

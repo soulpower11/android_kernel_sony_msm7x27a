@@ -158,12 +158,6 @@ static int led_suspend(struct device *dev, pm_message_t state)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-    printk(KERN_INFO "[PM]led suspend(): %s\n", led_cdev->name);
-#endif
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
-
 	if (led_cdev->flags & LED_CORE_SUSPENDRESUME)
 		led_classdev_suspend(led_cdev);
 

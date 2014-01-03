@@ -26,27 +26,8 @@
  * interrupts will not entered from idle until the wake_locks are released.
  */
 
-/*FIH-KERNEL-SC-Suspend_Hang_Timer-00+[*/
-#ifdef CONFIG_FIH_SUSPEND_HANG_TIMER
-
-#define POLLING_DUMP_SUSPEND_HANG_SECS  (5)
-#define DUMP_SUSPEND_HANG_LIMIT (10)
-
-enum {
-	SUSPEND_HANG = 0,
-	EARLY_SUSPEND_HANG,
-	LATE_RESUME_HANG,
-};
-
-#endif
-/*FIH-KERNEL-SC-Suspend_Hang_Timer-00+]*/
 enum {
 	WAKE_LOCK_SUSPEND, /* Prevent suspend */
-	/* FIH-SW-KERNEL-SC-TCXO_SD_DURING_DISPLAY_ON-01+[ */
-	#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-	WAKE_LOCK_TCXO,
-	#endif
-	/* FIH-SW-KERNEL-SC-TCXO_SD_DURING_DISPLAY_ON-01+] */
 	WAKE_LOCK_TYPE_COUNT
 };
 
@@ -69,21 +50,6 @@ struct wake_lock {
 #endif
 #endif
 };
-
-//MTD-kernel-BH-PMSWakelockInfo-00+[
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
-struct pms_wake_lock {
-	struct list_head	link;
-	char				*pid;
-	char				*tag;
-	char				*cmdline;
-	ktime_t				acquire_time;
-};
-
- void add_pms_wakelock_info(char *pid, char *cmdline, char * tag);
- void remove_pms_wakelock_info(char *pid, char * tag);
- #endif
-//MTD-kernel-BH-PMSWakelockInfo-00+]
 
 #ifdef CONFIG_HAS_WAKELOCK
 

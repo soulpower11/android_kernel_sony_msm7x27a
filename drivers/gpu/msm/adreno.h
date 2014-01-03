@@ -27,7 +27,7 @@
 /* Flags to control command packet settings */
 #define KGSL_CMD_FLAGS_NONE             0x00000000
 #define KGSL_CMD_FLAGS_PMODE		0x00000001
-#define KGSL_CMD_FLAGS_DUMMY_INTR_CMD  0x00000002
+#define KGSL_CMD_FLAGS_NO_TS_CMP	0x00000002
 
 /* Command identifiers */
 #define KGSL_CONTEXT_TO_MEM_IDENTIFIER	0x2EADBEEF
@@ -140,6 +140,7 @@ struct adreno_recovery_data {
 };
 
 extern struct adreno_gpudev adreno_a2xx_gpudev;
+extern struct adreno_gpudev adreno_a3xx_gpudev;
 
 /* A2XX register sets defined in adreno_a2xx.c */
 extern const unsigned int a200_registers[];
@@ -148,6 +149,10 @@ extern const unsigned int a225_registers[];
 extern const unsigned int a200_registers_count;
 extern const unsigned int a220_registers_count;
 extern const unsigned int a225_registers_count;
+
+/* A3XX register set defined in adreno_a3xx.c */
+extern const unsigned int a3xx_registers[];
+extern const unsigned int a3xx_registers_count;
 
 extern unsigned int hang_detect_regs[];
 extern const unsigned int hang_detect_regs_count;

@@ -13,7 +13,11 @@
 #include <linux/types.h>
 #include <linux/compiler.h>
 
-#define PPP_MTU 1500//MTD-SW3-KERNEL-DL-Enable_VPN
+/*
+ * Packet sizes FelexChing 20121015
+ */
+
+#define PPP_MTU		1500	/* Default MTU (size of Info field) */
 
 /*
  * Bit definitions for flags argument to PPPIOCGFLAGS/PPPIOCSFLAGS.

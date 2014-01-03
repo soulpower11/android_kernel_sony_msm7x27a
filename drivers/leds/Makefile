@@ -32,7 +32,7 @@ obj-$(CONFIG_LEDS_OT200)		+= leds-ot200.o
 obj-$(CONFIG_LEDS_FSG)			+= leds-fsg.o
 obj-$(CONFIG_LEDS_PCA955X)		+= leds-pca955x.o
 obj-$(CONFIG_LEDS_MSM_PMIC)		+= leds-msm-pmic.o
-obj-$(CONFIG_FIH_LEDS_MSM_PMIC)         += fih_led.o
+obj-$(CONFIG_FIH_LEDS_MSM_PMIC)		+= fih_led.o
 obj-$(CONFIG_LEDS_PCA9633)		+= leds-pca9633.o
 obj-$(CONFIG_LEDS_DA903X)		+= leds-da903x.o
 obj-$(CONFIG_LEDS_WM831X_STATUS)	+= leds-wm831x-status.o
@@ -54,6 +54,19 @@ obj-$(CONFIG_LEDS_PMIC_MPP)		+= leds-pmic-mpp.o
 obj-$(CONFIG_LEDS_QCIBL)		+= leds-qci-backlight.o
 obj-$(CONFIG_LEDS_MSM_PDM)		+= leds-msm-pdm.o
 obj-$(CONFIG_LEDS_MSM_TRICOLOR)		+= leds-msm-tricolor.o
+
+# <<SKIES 2011/10/19, button-backlight
+obj-$(CONFIG_LEDS_ARIMA_GPIO)		+= leds-arima-gpio.o
+# >>SKIES 2011/10/19
+# /*++ Huize - 20120329 Add for button backlight is controlled by mpp ++*/
+obj-$(CONFIG_LEDS_ACM_BUTTON_BACKLIGHT)	+= leds-acm-button_backlight.o
+# /*-- Huize - 20120329 Add for button backlight is controlled by mpp --*/
+# >>Edison RGB LED 2012/03/01
+obj-$(CONFIG_LEDS_ACM_RED)		+= leds-acm-red.o
+obj-$(CONFIG_LEDS_ACM_GREEN)		+= leds-acm-green.o
+obj-$(CONFIG_LEDS_ACM_BLUE)		+= leds-acm-blue.o
+obj-$(CONFIG_LEDS_CHIP_LM3533)		+= leds-lm3533.o
+# >>Edison 2012/03/01
 
 # LED SPI Drivers
 obj-$(CONFIG_LEDS_DAC124S085)		+= leds-dac124s085.o

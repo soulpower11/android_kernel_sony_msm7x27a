@@ -234,8 +234,6 @@ struct msm_handset {
 	bool mic_on, hs_on;
 };
 
-extern atomic_t	gKeySuspendLock;
-
 atomic_t	power_key_skip_count;
 
 DEFINE_SEMAPHORE( tick_time_protection );
@@ -354,20 +352,13 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 
 			unsigned long	store_jiffies	= jiffies;
 
-			int		suspend_lock	= atomic_read( &gKeySuspendLock );
-
 			int		counter;
 
 			printk( "PKEY : %s Key %s\n", key == KEY_POWER ? "POWER" : "END", key_code == HS_REL_K ? "up" : "down" );
 
 			counter	= get_interval( power_key_data->tick_time, store_jiffies );
 
-			printk( "PKEY : Suspend %s, "
-			       "Time[System:Interval:counter] = [%ums:%dms:%dms]\n",
-			       suspend_lock ? "lock" : "unlock",
-			       jiffies_to_msecs( store_jiffies ), power_key_data->interval, counter );
-
-			if( !power_key_data->set_interval && ( suspend_lock || counter < power_key_data->interval ) )
+			if( !power_key_data->set_interval && (counter < power_key_data->interval ) )
 			{
 
 				if( key_code != HS_REL_K )

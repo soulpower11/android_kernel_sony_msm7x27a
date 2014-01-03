@@ -26,8 +26,6 @@
 #include <mach/rpc_pmapp.h>
 #include "devices.h"
 #include "board-msm7627a.h"
-/* FIH-SW-MM-VH-DISPLAY-JB00+ */
-#include <linux/fih_hw_info.h>
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_SIZE		0x4BF000
@@ -808,15 +806,8 @@ static char lcdc_splash_is_enabled()
 #define GPIO_LCD_DSI_SEL	125
 #define LCDC_RESET_PHYS		0x90008014
 
-/* FIH-SW-MM-VH-DISPLAY-JB00*[ */
-#define GPIO_LCM_RESET 34
-#ifdef CONFIG_FIH_SW_DISPLAY_DSI_BKL_EN
-#define GPIO_LCM_BKL_EN 109  
-#endif
-/* static  void __iomem *lcdc_reset_ptr; */
+static  void __iomem *lcdc_reset_ptr;
 
-
-#if 0
 static unsigned mipi_dsi_gpio[] = {
 		GPIO_CFG(GPIO_LCDC_BRDG_RESET_N, 0, GPIO_CFG_OUTPUT,
 		GPIO_CFG_NO_PULL, GPIO_CFG_2MA), /* LCDC_BRDG_RESET_N */
@@ -828,8 +819,7 @@ static unsigned lcd_dsi_sel_gpio[] = {
 	GPIO_CFG(GPIO_LCD_DSI_SEL, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
 			GPIO_CFG_2MA),
 };
-#endif
-/* FIH-SW-MM-VH-DISPLAY-JB00*] */
+
 enum {
 	DSI_SINGLE_LANE = 1,
 	DSI_TWO_LANES,
@@ -837,12 +827,8 @@ enum {
 
 static int msm_fb_get_lane_config(void)
 {
-	#ifdef CONFIG_FIH_PROJECT_TAP
-	pr_info("DSI_SINGLE_LANES\n");
-	return DSI_SINGLE_LANE;
-	#else
 	/* For MSM7627A SURF/FFA and QRD */
-	int rc = DSI_SINGLE_LANE;
+	int rc = DSI_TWO_LANES;
 	if (machine_is_msm7625a_surf() || machine_is_msm7625a_ffa()) {
 		rc = DSI_SINGLE_LANE;
 		pr_info("DSI_SINGLE_LANES\n");
@@ -850,86 +836,54 @@ static int msm_fb_get_lane_config(void)
 		pr_info("DSI_TWO_LANES\n");
 	}
 	return rc;
-	#endif
 }
-/* FIH-SW-MM-VH-DISPLAY-JB00*[ */
-static int msm_fb_dsi_client_msm_reset(int hold)
+
+static int msm_fb_dsi_client_msm_reset(void)
 {
 	int rc = 0;
-	static int dsi_reset_initialized = 0;
 
-	printk(KERN_INFO "[DISPLAY]%s: E, hold <%d>\n", __func__, hold);
-
-	if (dsi_reset_initialized == 0) {
-		rc = gpio_request(GPIO_LCM_RESET, "gpio_disp_pwr");
-		if (rc < 0) {
-			pr_err("[DISPLAY] %s: Failed to request lcm_reset, rc <%d>\n", __func__, rc);
-			//return rc;
-		}
-		rc = gpio_tlmm_config(GPIO_CFG(GPIO_LCM_RESET, 0, GPIO_CFG_OUTPUT,
-									GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-		#ifdef CONFIG_FIH_SW_DISPLAY_DSI_BKL_EN
-		if (unlikely(fih_get_product_phase() < Phase_SP2)) {
-			printk(KERN_ALERT "[DISPLAY]%s: <%d> < SP2\n", __func__, fih_get_product_phase());
-			rc = gpio_request(GPIO_LCM_BKL_EN, "lcm_bkl_en");
-			if (rc < 0) {
-				pr_err("[DISPLAY] %s: Failed to request lcm_bkl_en\n", __func__);
-				//goto gpio_error;
-			}
-
-			rc = gpio_tlmm_config(GPIO_CFG(GPIO_LCM_BKL_EN, 0, GPIO_CFG_OUTPUT,
-										GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-									GPIO_CFG_ENABLE); 
-			if (rc < 0) {
-				pr_err("[DISPLAY] %s: Failed lcm_bkl_en enable\n", __func__);
-				//goto gpio_error2;
-			}
-		}
-		#endif
-		dsi_reset_initialized = 1;
+	rc = gpio_request(GPIO_LCDC_BRDG_RESET_N, "lcdc_brdg_reset_n");
+	if (rc < 0) {
+		pr_err("failed to request lcd brdg reset_n\n");
+		return rc;
 	}
 
-	if (hold) {
-		gpio_direction_output(GPIO_LCM_RESET, 0);
-	} else {
-#ifdef CONFIG_FIH_HR_MSLEEP
-		rc |= gpio_direction_output(GPIO_LCM_RESET, 1);
-		hr_msleep(5);
-		rc |= gpio_direction_output(GPIO_LCM_RESET, 0);
-		hr_msleep(5);
-		rc |= gpio_direction_output(GPIO_LCM_RESET, 1);
-#else
-		rc |= gpio_direction_output(GPIO_LCM_RESET, 1);
-		msleep(5);
-		rc |= gpio_direction_output(GPIO_LCM_RESET, 0);
-		msleep(5);
-		rc |= gpio_direction_output(GPIO_LCM_RESET, 1);
-#endif
+	rc = gpio_request(GPIO_LCDC_BRDG_PD, "lcdc_brdg_pd");
+	if (rc < 0) {
+		pr_err("failed to request lcd brdg pd\n");
+		return rc;
 	}
-#ifdef CONFIG_FIH_HR_MSLEEP
-	hr_msleep(150);
-#else
-	msleep(150);
-#endif
-#if 0
+
+	rc = gpio_tlmm_config(mipi_dsi_gpio[0], GPIO_CFG_ENABLE);
+	if (rc) {
+		pr_err("Failed to enable LCDC Bridge reset enable\n");
+		goto gpio_error;
+	}
+
+	rc = gpio_tlmm_config(mipi_dsi_gpio[1], GPIO_CFG_ENABLE);
+	if (rc) {
+		pr_err("Failed to enable LCDC Bridge pd enable\n");
+		goto gpio_error2;
+	}
+
+	rc = gpio_direction_output(GPIO_LCDC_BRDG_RESET_N, 1);
+	rc |= gpio_direction_output(GPIO_LCDC_BRDG_PD, 1);
+	gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
+
 	if (!rc) {
 		if (machine_is_msm7x27a_surf() || machine_is_msm7625a_surf()
 				|| machine_is_msm8625_surf()) {
 			lcdc_reset_ptr = ioremap_nocache(LCDC_RESET_PHYS,
 				sizeof(uint32_t));
-			printk(KERN_ERR "[DISPLAY]%s: surf\n", __func__);
 
 			if (!lcdc_reset_ptr)
 				return 0;
 		}
-
-		printk(KERN_ERR "[DISPLAY]%s: X, rc <%d>\n", __func__, rc);
 		return rc;
 	} else {
-		//goto gpio_error;
+		goto gpio_error;
 	}
-#endif
-#if 0
+
 gpio_error2:
 	pr_err("Failed GPIO bridge pd\n");
 	gpio_free(GPIO_LCDC_BRDG_PD);
@@ -937,12 +891,9 @@ gpio_error2:
 gpio_error:
 	pr_err("Failed GPIO bridge reset\n");
 	gpio_free(GPIO_LCDC_BRDG_RESET_N);
-#endif
-	printk(KERN_INFO "[DISPLAY]%s: X, rc <%d>\n", __func__, rc);
-
 	return rc;
 }
-#if 0
+
 static int mipi_truly_sel_mode(int video_mode)
 {
 	int rc = 0;
@@ -1040,83 +991,138 @@ static int msm_fb_dsi_client_reset(void)
 						|| machine_is_msm8625_evt())
 		rc = msm_fb_dsi_client_qrd3_reset();
 	else
-		rc = msm_fb_dsi_client_msm_reset(0);
+		rc = msm_fb_dsi_client_msm_reset();
 
 	return rc;
 
 }
-#endif
-static struct regulator_bulk_data fih_regs_dsi[] = {
-	{ .supply = "rfrx1",   .min_uV = 2800000, .max_uV = 2800000 },
-	{ .supply = "wlan4", .min_uV = 1800000, .max_uV = 1800000 },
+
+static struct regulator_bulk_data regs_dsi[] = {
+	{ .supply = "gp2",   .min_uV = 2850000, .max_uV = 2850000 },
+	{ .supply = "msme1", .min_uV = 1800000, .max_uV = 1800000 },
 };
 
-static int dsi_gpio_initialized = 0;
+static int dsi_gpio_initialized;
 
 static int mipi_dsi_panel_msm_power(int on)
 {
 	int rc = 0;
-
-
-
-
-
-	/* Power off, Reset Pin pull LOW must before power source off */
-	//if ((!on) || (!dsi_gpio_initialized)){
-	if (!on){
-		rc = msm_fb_dsi_client_msm_reset(1);
-		if (rc < 0) {
-			pr_err("[DISPLAY] %s: Failed to pull low lcm reset\n", __func__);
-			goto fail_gpio2;
-		}
-	}
+	uint32_t lcdc_reset_cfg;
 
 	/* I2C-controlled GPIO Expander -init of the GPIOs very late */
 	if (unlikely(!dsi_gpio_initialized)) {
+		pmapp_disp_backlight_init();
 
-		rc = regulator_bulk_get(NULL, ARRAY_SIZE(fih_regs_dsi), fih_regs_dsi);
+		rc = gpio_request(GPIO_DISPLAY_PWR_EN, "gpio_disp_pwr");
+		if (rc < 0) {
+			pr_err("failed to request gpio_disp_pwr\n");
+			return rc;
+		}
+
+		if (machine_is_msm7x27a_surf() || machine_is_msm7625a_surf()
+				|| machine_is_msm8625_surf()) {
+			rc = gpio_direction_output(GPIO_DISPLAY_PWR_EN, 1);
+			if (rc < 0) {
+				pr_err("failed to enable display pwr\n");
+				goto fail_gpio1;
+			}
+
+			rc = gpio_request(GPIO_BACKLIGHT_EN, "gpio_bkl_en");
+			if (rc < 0) {
+				pr_err("failed to request gpio_bkl_en\n");
+				goto fail_gpio1;
+			}
+
+			rc = gpio_direction_output(GPIO_BACKLIGHT_EN, 1);
+			if (rc < 0) {
+				pr_err("failed to enable backlight\n");
+				goto fail_gpio2;
+			}
+		}
+
+		rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs_dsi), regs_dsi);
 		if (rc) {
-			pr_err("[DISPLAY]%s: could not get regulators: %d\n",
+			pr_err("%s: could not get regulators: %d\n",
 					__func__, rc);
 			goto fail_gpio2;
 		}
 
-		rc = regulator_bulk_set_voltage(ARRAY_SIZE(fih_regs_dsi),
-						fih_regs_dsi);
+		rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs_dsi),
+						regs_dsi);
 		if (rc) {
-			pr_err("[DISPLAY]%s: could not set voltages: %d\n",
+			pr_err("%s: could not set voltages: %d\n",
 					__func__, rc);
 			goto fail_vreg;
 		}
-
-		msm_fb_dsi_client_msm_reset(1);
+		if (pmapp_disp_backlight_set_brightness(100))
+			pr_err("backlight set brightness failed\n");
 
 		dsi_gpio_initialized = 1;
 	}
+	if (machine_is_msm7x27a_surf() || machine_is_msm7625a_surf() ||
+			machine_is_msm8625_surf()) {
+		gpio_set_value_cansleep(GPIO_DISPLAY_PWR_EN, on);
+		gpio_set_value_cansleep(GPIO_BACKLIGHT_EN, on);
+	} else if (machine_is_msm7x27a_ffa() || machine_is_msm7625a_ffa()
+					|| machine_is_msm8625_ffa()) {
+		if (on) {
+			/* This line drives an active low pin on FFA */
+			rc = gpio_direction_output(GPIO_DISPLAY_PWR_EN, !on);
+			if (rc < 0)
+				pr_err("failed to set direction for "
+					"display pwr\n");
+		} else {
+			gpio_set_value_cansleep(GPIO_DISPLAY_PWR_EN, !on);
+			rc = gpio_direction_input(GPIO_DISPLAY_PWR_EN);
+			if (rc < 0)
+				pr_err("failed to set direction for "
+					"display pwr\n");
+		}
+	}
 
-	rc = on ? regulator_bulk_enable(ARRAY_SIZE(fih_regs_dsi), fih_regs_dsi) :
-		  regulator_bulk_disable(ARRAY_SIZE(fih_regs_dsi), fih_regs_dsi);
+	if (on) {
+		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
+
+		if (machine_is_msm7x27a_surf() ||
+				 machine_is_msm7625a_surf() ||
+				 machine_is_msm8625_surf()) {
+			lcdc_reset_cfg = readl_relaxed(lcdc_reset_ptr);
+			rmb();
+			lcdc_reset_cfg &= ~1;
+			writel_relaxed(lcdc_reset_cfg, lcdc_reset_ptr);
+			msleep(20);
+			wmb();
+			lcdc_reset_cfg |= 1;
+			writel_relaxed(lcdc_reset_cfg, lcdc_reset_ptr);
+			msleep(20);
+		} else {
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
+			msleep(20);
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
+			msleep(20);
+		}
+	} else {
+		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
+	}
+
+	rc = on ? regulator_bulk_enable(ARRAY_SIZE(regs_dsi), regs_dsi) :
+		  regulator_bulk_disable(ARRAY_SIZE(regs_dsi), regs_dsi);
 
 	if (rc)
-		pr_err("[DISPLAY]%s: could not %sable regulators: %d\n",
+		pr_err("%s: could not %sable regulators: %d\n",
 				__func__, on ? "en" : "dis", rc);
-
-printk(KERN_INFO "[DISPLAY]%s: X\n", __func__);
 
 	return rc;
 fail_vreg:
-	regulator_bulk_free(ARRAY_SIZE(fih_regs_dsi), fih_regs_dsi);
+	regulator_bulk_free(ARRAY_SIZE(regs_dsi), regs_dsi);
 fail_gpio2:
-	//gpio_free(GPIO_BACKLIGHT_EN);
-//fail_gpio1:
-	//gpio_free(GPIO_DISPLAY_PWR_EN);
+	gpio_free(GPIO_BACKLIGHT_EN);
+fail_gpio1:
+	gpio_free(GPIO_DISPLAY_PWR_EN);
 	dsi_gpio_initialized = 0;
-    printk(KERN_ERR "[DISPLAY]%s: X, failed\n", __func__);
-
 	return rc;
 }
 
-#if 0
 static int mipi_dsi_panel_qrd1_power(int on)
 {
 	int rc = 0;
@@ -1283,9 +1289,7 @@ static int mipi_dsi_panel_qrd3_power(int on)
 	return rc;
 }
 
-#endif
 static char mipi_dsi_splash_is_enabled(void);
-#if 0
 static int mipi_dsi_panel_power(int on)
 {
 	int rc = 0;
@@ -1299,19 +1303,19 @@ static int mipi_dsi_panel_power(int on)
 		rc = mipi_dsi_panel_msm_power(on);
 	return rc;
 }
-#endif
+
 #define MDP_303_VSYNC_GPIO 97
 
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 static struct mipi_dsi_platform_data mipi_dsi_pdata = {
 	.vsync_gpio		= MDP_303_VSYNC_GPIO,
-	.dsi_power_save		= mipi_dsi_panel_msm_power,
-	.dsi_client_reset       = msm_fb_dsi_client_msm_reset,
+	.dsi_power_save		= mipi_dsi_panel_power,
+	.dsi_client_reset       = msm_fb_dsi_client_reset,
 	.get_lane_config	= msm_fb_get_lane_config,
 	.splash_is_enabled	= mipi_dsi_splash_is_enabled,
 };
 #endif
-/* FIH-SW-MM-VH-DISPLAY-JB00*] */
+
 static char mipi_dsi_splash_is_enabled(void)
 {
 	return mdp_pdata.cont_splash_enabled;
@@ -1348,10 +1352,10 @@ void msm7x27a_set_display_params(char *prim_panel)
 			disable_splash = 1;
 	}
 }
-/* FIH-SW-MM-VH-DISPLAY-JB00*[ */
+
 void __init msm_fb_add_devices(void)
 {
-	/* int rc = 0; */
+	int rc = 0;
 	msm7x27a_set_display_params(prim_panel_name);
 	if (machine_is_msm7627a_qrd1())
 		platform_add_devices(qrd_fb_devices,
@@ -1378,18 +1382,13 @@ void __init msm_fb_add_devices(void)
 	}
 
 	msm_fb_register_device("mdp", &mdp_pdata);
-
-if (0){
 	if (machine_is_msm7625a_surf() || machine_is_msm7x27a_surf() ||
 			machine_is_msm8625_surf() || machine_is_msm7627a_qrd3()
 			|| machine_is_msm8625_qrd7())
 		msm_fb_register_device("lcdc", &lcdc_pdata);
-}
-
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 	msm_fb_register_device("mipi_dsi", &mipi_dsi_pdata);
 #endif
-#if 0
 	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
 					|| machine_is_msm8625_evt()) {
 		gpio_reg_2p85v = regulator_get(&mipi_dsi_device.dev,
@@ -1412,6 +1411,4 @@ if (0){
 				pr_err("%s: reg enable failed\n", __func__);
 		}
 	}
-#endif
 }
-/* FIH-SW-MM-VH-DISPLAY-JB00*] */

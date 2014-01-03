@@ -137,7 +137,7 @@ int32_t msm_sensor_write_conf_array(struct msm_camera_i2c_client *client,
 	struct msm_camera_i2c_conf_array *array, uint16_t index);
 
 int32_t msm_sensor_write_enum_conf_array(struct msm_camera_i2c_client *client,
-	struct msm_camera_i2c_enum_conf_array *conf, int enum_val); /*MTD-MM-SL-AddBrightness-00* *///uint16_t enum_val
+	struct msm_camera_i2c_enum_conf_array *conf, uint16_t enum_val);
 
 int32_t msm_sensor_write_all_conf_array(struct msm_camera_i2c_client *client,
 	struct msm_camera_i2c_conf_array *array, uint16_t size);

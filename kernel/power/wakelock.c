@@ -1,7 +1,6 @@
 /* kernel/power/wakelock.c
  *
  * Copyright (C) 2005-2008 Google, Inc.
- * Copyright (C) 2011-2012, Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -31,18 +30,8 @@ enum {
 	DEBUG_SUSPEND = 1U << 2,
 	DEBUG_EXPIRE = 1U << 3,
 	DEBUG_WAKE_LOCK = 1U << 4,
-	DEBUG_POLLING_DUMP_WAKELOCK = 1U << 5,	/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-	DEBUG_PMS_WAKE_LOCK = 1U << 6,  //MTD-kernel-BH-PMSWakelockInfo-00+
 };
-
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
-  static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP | DEBUG_SUSPEND | DEBUG_POLLING_DUMP_WAKELOCK;
-#else
 static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP;
-#endif /* CONFIG_FIH_DUMP_WAKELOCK */
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
-
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define WAKE_LOCK_TYPE_MASK              (0x0f)
@@ -50,21 +39,9 @@ module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define WAKE_LOCK_ACTIVE                 (1U << 9)
 #define WAKE_LOCK_AUTO_EXPIRE            (1U << 10)
 #define WAKE_LOCK_PREVENTING_SUSPEND     (1U << 11)
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-#define POLLING_DUMP_WAKELOCK_SECS	(45)   /* FIH-SW3-KERNEL-JC-dumpwakelock */
-/*#define IDLE_DUMP_WAKELOCK_COUNT (40)*//*KERNEL-SC-idle-wakelock-00-*/
-#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-	#define TCXO_DUMP_WAKELOCK_COUNT (10)
-#endif
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
+
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(inactive_locks);
-//MTD-kernel-BH-PMSWakelockInfo-00+[
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
-static DEFINE_SPINLOCK(pms_list_lock);
-static LIST_HEAD(pms_locks);
-#endif
-//MTD-kernel-BH-PMSWakelockInfo-00+]
 static struct list_head active_wake_locks[WAKE_LOCK_TYPE_COUNT];
 static int current_event_num;
 static int suspend_sys_sync_count;
@@ -73,11 +50,6 @@ static struct workqueue_struct *suspend_sys_sync_work_queue;
 static DECLARE_COMPLETION(suspend_sys_sync_comp);
 struct workqueue_struct *suspend_work_queue;
 struct wake_lock main_wake_lock;
-/*FIH-SW3-KERNEL-PK-DISABLE_SUSPEND-00+[ */
-#ifdef CONFIG_FIH_DISABLE_SUSPEND
-struct wake_lock avoidsuspend;
-#endif
-/*FIH-SW3-KERNEL-PK-DISABLE_SUSPEND-00+] */
 suspend_state_t requested_suspend_state = PM_SUSPEND_MEM;
 static struct wake_lock unknown_wakeup;
 static struct wake_lock suspend_backoff_lock;
@@ -91,153 +63,6 @@ static unsigned suspend_short_count;
 static struct wake_lock deleted_wake_locks;
 static ktime_t last_sleep_time_update;
 static int wait_for_wakeup;
-
-/*FIH-KERNEL-SC-Suspend_Hang_Timer-00+[*/
-#ifdef CONFIG_FIH_SUSPEND_HANG_TIMER
-void dump_suspend_info(unsigned long data);
-DEFINE_TIMER(suspend_hang_timer, dump_suspend_info, 0, 0);
-int suspend_dump_counter = 0;
-EXPORT_SYMBOL(suspend_dump_counter);
-
-pid_t pid_suspend = 0;
-EXPORT_SYMBOL(pid_suspend);
-
-const char *suspend_hang_state_list[] = {
-	"SUSPEND_HANG",
-	"EARLY_SUSPEND_HANG",
-	"LATE_RESUME_HANG"
-};
-
-void dump_suspend_info(unsigned long data)
-{
-	struct task_struct *p;
-	
-	pr_err("%s: Dump the call stack of suspend thread:\n", suspend_hang_state_list[data]);
-	p = find_task_by_pid_ns(pid_suspend, &init_pid_ns);
-	sched_show_task(p);
-	mod_timer(&suspend_hang_timer, (jiffies + (POLLING_DUMP_SUSPEND_HANG_SECS*HZ)));
-
-	suspend_dump_counter ++;
-	
-	if(suspend_dump_counter >= DUMP_SUSPEND_HANG_LIMIT)
-	{
-		pr_err("[%s]the suspend/resume thread is blocked over %d times, Trigger Kernel Panic!!(%s)\n", 
-				__func__,
-				DUMP_SUSPEND_HANG_LIMIT,
-				suspend_hang_state_list[data]);
-		
-		panic("suspend/resume hang! Force to panic kernel!\n");
-	}
-}
-#endif
-/*FIH-KERNEL-SC-Suspend_Hang_Timer-00+]*/
-
- //MTD-kernel-BH-PMSWakelockInfo-00+[
- #ifdef CONFIG_FIH_DUMP_WAKELOCK
- void add_pms_wakelock_info(char *pid, char *tag, char * cmdline) 
-{
-	unsigned long irqflags;
-	struct pms_wake_lock *lock;
-	int pid_len,tag_len,cmdline_len;
-
-	if (!*pid) {
-		pr_err("[PMSWL]add_pms_wakelock_info: pid is empty\n");
-		return;
-	}
-	if (!*cmdline) {
-		pr_err("[PMSWL]add_pms_wakelock_info: cmdline is empty\n");
-		return;
-	}
-	if (!*tag) {
-		pr_err("[PMSWL]add_pms_wakelock_info: tag is empty\n");
-		return;
-	}
-	
-	spin_lock_irqsave(&pms_list_lock, irqflags);	
-	list_for_each_entry(lock, &pms_locks, link) {
-		if (!strcmp(lock->tag,tag) && !strcmp(lock->pid,pid))
-		{
-			lock->acquire_time = ktime_get();
-			if (debug_mask & (DEBUG_PMS_WAKE_LOCK)) //MTD-kernel-BH-PMSWakelockInfo-00+
-				pr_info("[PMSWL]pms wakelock info is already exist: %s %s %s\n", pid, cmdline, tag); 
-			goto exit_add;
-		}
-	}
-
-	lock = kzalloc(sizeof(*lock), GFP_ATOMIC); //MTD-kernel-BH-FixCoverityIssue-00*
-	if (!lock) {
-		pr_err("[PMSWL]no memory to allocate pms_lock size:%d\n",sizeof(*lock)); //MTD-kernel-BH-FixCoverityIssue-00*
-		goto exit_add;
-	}
-	pid_len=strlen(pid)+1;
-	lock->pid = kzalloc(pid_len, GFP_ATOMIC);
-	if (!lock->pid) {
-		pr_err("[PMSWL]no memory to allocate pms_lock->pid size:%d\n", pid_len); //MTD-kernel-BH-FixCoverityIssue-00*
-		kfree(lock);
-		goto exit_add;
-	}
-	strncpy(lock->pid,pid,pid_len);
-	
-	cmdline_len=strlen(cmdline)+1;
-	lock->cmdline = kzalloc(cmdline_len, GFP_ATOMIC);
-	if (!lock->cmdline) {
-		pr_err("[PMSWL]no memory to allocate pms_lock->cmdline size:%d\n", cmdline_len); //MTD-kernel-BH-FixCoverityIssue-00*
-		kfree(lock->pid);
-		kfree(lock);
-		goto exit_add;
-	}	
-	strncpy(lock->cmdline,cmdline,cmdline_len);
-
-	tag_len=strlen(tag)+1;
-	lock->tag = kzalloc(tag_len, GFP_ATOMIC);
-	if (!lock->tag) {
-		pr_err("[PMSWL]no memory to allocate pms_lock->tag size:%d\n", tag_len); //MTD-kernel-BH-FixCoverityIssue-00*
-		kfree(lock->pid);
-		kfree(lock->cmdline);
-		kfree(lock);
-		goto exit_add;
-	}	
-	strncpy(lock->tag,tag,tag_len);
-
-	lock->acquire_time = ktime_get();
-	list_add(&lock->link,&pms_locks);
-	if (debug_mask & (DEBUG_PMS_WAKE_LOCK))	
-		pr_info("[PMSWL]add pms wakelock info: %s %s %s\n", pid, cmdline, tag);
-
-exit_add:	
-	spin_unlock_irqrestore(&pms_list_lock, irqflags);	
-}
- EXPORT_SYMBOL(add_pms_wakelock_info);
-
- void remove_pms_wakelock_info(char *pid, char * tag)
-{
-	unsigned long irqflags;
-	
-	struct pms_wake_lock *lock;
-	
-	spin_lock_irqsave(&pms_list_lock, irqflags);
-	list_for_each_entry(lock, &pms_locks, link) {
-		if (!strcmp(lock->tag,tag) && !strcmp(lock->pid,pid))
-		{
-			list_del(&lock->link);
-			if (debug_mask & (DEBUG_PMS_WAKE_LOCK))
-				pr_info("[PMSWL]del pms wakelock info: %s %s %s\n", pid, lock->cmdline, tag);
-			kfree(lock->pid);
-			kfree(lock->cmdline);
-			kfree(lock->tag);
-			kfree(lock);
-			goto remove_done;
-		}
-	}
-	if (debug_mask & (DEBUG_PMS_WAKE_LOCK)) //MTD-kernel-BH-PMSWakelockInfo-00+
-		pr_info("[PMSWL]fail to remove pms wakelock info: %s %s\n", pid, tag);
-
-remove_done:	
-	spin_unlock_irqrestore(&pms_list_lock, irqflags);
-}
- #endif
-  EXPORT_SYMBOL(remove_pms_wakelock_info);
- //MTD-kernel-BH-PMSWakelockInfo-00+]
 
 int get_expired_time(struct wake_lock *lock, ktime_t *expire_time)
 {
@@ -386,24 +211,6 @@ static void expire_wake_lock(struct wake_lock *lock)
 		pr_info("expired wake lock %s\n", lock->name);
 }
 
-//MTD-kernel-BH-PMSWakelockInfo-00+[
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
- static void print_active_pms_locks(void)
-{
-	struct pms_wake_lock *lock;
-
-	list_for_each_entry(lock, &pms_locks, link) {
-		ktime_t now = ktime_get();
-		ktime_t active_time = ktime_sub(now, lock->acquire_time);
-		s64 ns = ktime_to_ns(active_time);
-		s64 s = ns;			
-		ns = do_div(s, NSEC_PER_SEC);
-		pr_info("[PMSWL]active PMS wake lock: %s %s %s %lld.%lld secs\n", lock->pid, lock->cmdline, lock->tag, s, ns);
-	}
-}
-#endif /* CONFIG_FIH_DUMP_WAKELOCK */
-//MTD-kernel-BH-PMSWakelockInfo-00+]
-
 /* Caller must acquire the list_lock spinlock */
 static void print_active_locks(int type)
 {
@@ -420,28 +227,11 @@ static void print_active_locks(int type)
 			else if (print_expired)
 				pr_info("wake lock %s, expired\n", lock->name);
 		} else {
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
-			ktime_t now = ktime_get();
-			ktime_t active_time = ktime_sub(now, lock->stat.last_time);
-			s64 ns = ktime_to_ns(active_time);
-			s64 s = ns;			
-			ns = do_div(s, NSEC_PER_SEC);
-			pr_info("[PM]active wake lock[%d] %s %lld.%lld secs\n", type, lock->name, s, ns);
-#else
 			pr_info("active wake lock %s\n", lock->name);
-#endif /* CONFIG_FIH_DUMP_WAKELOCK */
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 			if (!(debug_mask & DEBUG_EXPIRE))
 				print_expired = false;
 		}
 	}
-	//MTD-kernel-BH-PMSWakelockInfo-00+[
-	#ifdef CONFIG_FIH_DUMP_WAKELOCK
-	if (type == WAKE_LOCK_SUSPEND)
-		print_active_pms_locks();
-	#endif
-	//MTD-kernel-BH-PMSWakelockInfo-00+]
 }
 
 static long has_wake_lock_locked(int type)
@@ -467,76 +257,13 @@ long has_wake_lock(int type)
 {
 	long ret;
 	unsigned long irqflags;
-    /*static int idle_msg_count = 0;*//*KERNEL-SC-idle-wakelock-00-*/
-    /*FIH-SW-KERNEL-SC-TCXO_SD_DURING_DISPLAY_ON-01+[ */
-	#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-    static int tcxo_msg_count = 0;
-	#endif
-    /*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 	spin_lock_irqsave(&list_lock, irqflags);
 	ret = has_wake_lock_locked(type);
-    
-	/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-	/*if((type == WAKE_LOCK_IDLE) && (ret != 0))
-		idle_msg_count ++;
-	*//*KERNEL-SC-idle-wakelock-00-*/
-	/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
-
-    /*FIH-SW-KERNEL-SC-TCXO_SD_DURING_DISPLAY_ON-01+[ */
-	#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-	if((type == WAKE_LOCK_TCXO) && (ret != 0))
-		tcxo_msg_count ++;
-	#endif
-    /*FIH-SW-KERNEL-SC-TCXO_SD_DURING_DISPLAY_ON-01+] */
-
-	/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-	if (ret && (debug_mask & DEBUG_SUSPEND) && (type == WAKE_LOCK_SUSPEND))
-	{   
+	if (ret && (debug_mask & DEBUG_WAKEUP) && type == WAKE_LOCK_SUSPEND)
 		print_active_locks(type);
-	}
-
-	/*if((idle_msg_count > IDLE_DUMP_WAKELOCK_COUNT) && (type == WAKE_LOCK_IDLE))
-	{
-		print_active_locks(type);
-		idle_msg_count = 0; 
-	}*//*KERNEL-SC-idle-wakelock-00-*/
-	/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
-
-    /*FIH-SW-KERNEL-SC-TCXO_SD_DURING_DISPLAY_ON-01+[ */
-	#ifdef CONFIG_FIH_SW_TCXO_SD_DURING_DISPLAY_ON
-	if((tcxo_msg_count > TCXO_DUMP_WAKELOCK_COUNT) && (type == WAKE_LOCK_TCXO))
-	{
-		print_active_locks(type);
-		tcxo_msg_count = 0; 
-	}
-	#endif
-    /*FIH-SW-KERNEL-SC-TCXO_SD_DURING_DISPLAY_ON-01+] */
-	
 	spin_unlock_irqrestore(&list_lock, irqflags);
 	return ret;
 }
-
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
-static void dump_wakelocks(unsigned long data);
-static DEFINE_TIMER(dump_wakelock_timer, dump_wakelocks, 0, 0);
-
-static void dump_wakelocks(unsigned long data)
-{
-	unsigned long irqflags;
-
-	if (debug_mask & DEBUG_POLLING_DUMP_WAKELOCK) {
-		pr_info("[PM]--- dump_wakelocks ---\n");
-
-		spin_lock_irqsave(&list_lock, irqflags);
-			print_active_locks(WAKE_LOCK_SUSPEND);
-		spin_unlock_irqrestore(&list_lock, irqflags);
-	}
-
-	mod_timer(&dump_wakelock_timer, jiffies + POLLING_DUMP_WAKELOCK_SECS*HZ);
-}
-#endif /* CONFIG_FIH_DUMP_WAKELOCK */
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 
 static void suspend_sys_sync(struct work_struct *work)
 {
@@ -618,38 +345,14 @@ static void suspend(struct work_struct *work)
 	if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
 		if (debug_mask & DEBUG_SUSPEND)
 			pr_info("suspend: abort suspend\n");
-			
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
-		pr_info("[PM]requested_suspend_state = %d\n", requested_suspend_state);
-		if (requested_suspend_state != PM_SUSPEND_ON)
-			mod_timer(&dump_wakelock_timer, jiffies + POLLING_DUMP_WAKELOCK_SECS*HZ);
-#endif /* CONFIG_FIH_DUMP_WAKELOCK */
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 		return;
 	}
-
-/*FIH-KERNEL-SC-Suspend_Hang_Timer-00+[*/
-#ifdef CONFIG_FIH_SUSPEND_HANG_TIMER
-	pr_info("suspend: add suspend_hang_timer\n");
-	pid_suspend = (pid_t) current->pid;
-	suspend_dump_counter = 0;
-	suspend_hang_timer.data = SUSPEND_HANG;
-	mod_timer(&suspend_hang_timer, (jiffies + (POLLING_DUMP_SUSPEND_HANG_SECS*HZ)));
-#endif
-/*FIH-KERNEL-SC-Suspend_Hang_Timer-00+]*/
 
 	entry_event_num = current_event_num;
 	suspend_sys_sync_queue();
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("suspend: enter suspend\n");
 	getnstimeofday(&ts_entry);
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
-	if (del_timer(&dump_wakelock_timer))
-		pr_info("suspend: del dump_wakelock_timer\n");
-#endif /* CONFIG_FIH_DUMP_WAKELOCK */
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 	ret = pm_suspend(requested_suspend_state);
 	getnstimeofday(&ts_exit);
 
@@ -678,14 +381,6 @@ static void suspend(struct work_struct *work)
 			pr_info("suspend: pm_suspend returned with no event\n");
 		wake_lock_timeout(&unknown_wakeup, HZ / 2);
 	}
-	
-/*FIH-KERNEL-SC-Suspend_Hang_Timer-00+[*/
-#ifdef CONFIG_FIH_SUSPEND_HANG_TIMER
-	pr_info("suspend: del suspend_hang_timer\n");
-	del_timer(&suspend_hang_timer);
-#endif
-/*FIH-KERNEL-SC-Suspend_Hang_Timer-00+]*/
-	
 }
 static DECLARE_WORK(suspend_work, suspend);
 
@@ -833,14 +528,6 @@ static void wake_lock_internal(
 	}
 	if (type == WAKE_LOCK_SUSPEND) {
 		current_event_num++;
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
-		if (lock == &main_wake_lock) {
-			if (del_timer(&dump_wakelock_timer))
-				pr_info("[PM]main_wake_lock: del dump_wakelock_timer\n");
-		}
-#endif /* CONFIG_FIH_DUMP_WAKELOCK */
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 #ifdef CONFIG_WAKELOCK_STAT
 		if (lock == &main_wake_lock)
 			update_sleep_wait_stats_locked(1);
@@ -912,15 +599,6 @@ void wake_unlock(struct wake_lock *lock)
 		if (lock == &main_wake_lock) {
 			if (debug_mask & DEBUG_SUSPEND)
 				print_active_locks(WAKE_LOCK_SUSPEND);
-			
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
-			if (has_lock){
-				pr_info("[PM]but still have lock.\n");
-				mod_timer(&dump_wakelock_timer, jiffies + POLLING_DUMP_WAKELOCK_SECS*HZ);
-			}
-#endif /* CONFIG_FIH_DUMP_WAKELOCK */
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 #ifdef CONFIG_WAKELOCK_STAT
 			update_sleep_wait_stats_locked(0);
 #endif
@@ -966,13 +644,6 @@ static int __init wakelocks_init(void)
 	wake_lock_init(&unknown_wakeup, WAKE_LOCK_SUSPEND, "unknown_wakeups");
 	wake_lock_init(&suspend_backoff_lock, WAKE_LOCK_SUSPEND,
 		       "suspend_backoff");
-/*FIH-SW3-KERNEL-PK-DISABLE_SUSPEND-00+[ */
-#ifdef CONFIG_FIH_DISABLE_SUSPEND
-	pr_err("avoidsuspend: avoid suspend\n");
-	wake_lock_init(&avoidsuspend, WAKE_LOCK_SUSPEND, "avoidsuspend");
-	wake_lock(&avoidsuspend); 
-#endif
-/*FIH-SW3-KERNEL-PK-DISABLE_SUSPEND-00+] */
 
 	ret = platform_device_register(&power_device);
 	if (ret) {
@@ -1014,11 +685,6 @@ err_platform_device_register:
 	wake_lock_destroy(&suspend_backoff_lock);
 	wake_lock_destroy(&unknown_wakeup);
 	wake_lock_destroy(&main_wake_lock);
-	/*FIH-SW3-KERNEL-PK-DISABLE_SUSPEND-00+[ */
-	#ifdef CONFIG_FIH_DISABLE_SUSPEND
-	wake_lock_destroy(&avoidsuspend);
-	#endif
-	/*FIH-SW3-KERNEL-PK-DISABLE_SUSPEND-00+] */
 #ifdef CONFIG_WAKELOCK_STAT
 	wake_lock_destroy(&deleted_wake_locks);
 #endif
@@ -1037,11 +703,6 @@ static void  __exit wakelocks_exit(void)
 	wake_lock_destroy(&suspend_backoff_lock);
 	wake_lock_destroy(&unknown_wakeup);
 	wake_lock_destroy(&main_wake_lock);
-	/*FIH-SW3-KERNEL-PK-DISABLE_SUSPEND-00+[ */
-	#ifdef CONFIG_FIH_DISABLE_SUSPEND
-	wake_lock_destroy(&avoidsuspend);
-	#endif
-	/*FIH-SW3-KERNEL-PK-DISABLE_SUSPEND-00+] */
 #ifdef CONFIG_WAKELOCK_STAT
 	wake_lock_destroy(&deleted_wake_locks);
 #endif

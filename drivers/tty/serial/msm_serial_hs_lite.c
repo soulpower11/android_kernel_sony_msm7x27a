@@ -48,12 +48,6 @@
 #include <asm/mach-types.h>
 #include "msm_serial_hs_hwreg.h"
 
-/* FIH-SW3-KERNEL-TH-dynamically_disable_UART-00+[ */ 
-#ifdef CONFIG_FEATURE_FIH_SW3_REMOVE_SERIAL_DYNAMICALLY
-extern unsigned int fih_read_uart_switch_from_nv(void);
-#endif
-/* FIH-SW3-KERNEL-TH-dynamically_disable_UART-00+] */ 
-
 struct msm_hsl_port {
 	struct uart_port	uart;
 	char			name[16];
@@ -1555,20 +1549,6 @@ static int __init msm_serial_hsl_init(void)
 {
 	int ret;
 
-/* FIH-SW3-KERNEL-TH-dynamically_disable_UART-00+[ */
-#ifdef CONFIG_FEATURE_FIH_SW3_REMOVE_SERIAL_DYNAMICALLY
-	int enable_uart = 0;
-
-	enable_uart = fih_read_uart_switch_from_nv(); 
-
-	if( !enable_uart )
-	{
-		pr_info("%s(): Disable UART console\n", __func__);
-		return 0;
-	}
-#endif
-/* FIH-SW3-KERNEL-TH-dynamically_disable_UART-00+] */
-
 	ret = uart_register_driver(&msm_hsl_uart_driver);
 	if (unlikely(ret))
 		return ret;
@@ -1588,24 +1568,7 @@ static int __init msm_serial_hsl_init(void)
 
 static void __exit msm_serial_hsl_exit(void)
 {
-
-/* FIH-SW3-KERNEL-TH-dynamically_disable_UART-00+[ */
-/*FIH-KERNEL-SC-console-suspend-00*[*/
-
-#ifdef CONFIG_FEATURE_FIH_SW3_REMOVE_SERIAL_DYNAMICALLY
-  int enable_uart = 0;
-
-	enable_uart = fih_read_uart_switch_from_nv(); 
-
-	if( !enable_uart )
-	{
-        return;
-    }
-#endif
-
 	debugfs_remove_recursive(debug_base);
-/*FIH-KERNEL-SC-console-suspend-00*]*/
-/* FIH-SW3-KERNEL-TH-dynamically_disable_UART-00+] */     
 #ifdef CONFIG_SERIAL_MSM_HSL_CONSOLE
 	unregister_console(&msm_hsl_console);
 #endif

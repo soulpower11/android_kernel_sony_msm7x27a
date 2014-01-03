@@ -23,9 +23,9 @@ config FB_MSM_BACKLIGHT
 
 config FB_MSM_LOGO
 	bool "MSM Frame Buffer Logo"
-	default n
+	default y
 	---help---
-	  Show /initlogo.rle during boot.
+	  Show /sonylogo.rle during boot.
 
 config FB_MSM_LCDC_HW
 	bool
@@ -178,16 +178,23 @@ config FB_MSM_MIPI_DSI_TOSHIBA
 	bool
 	select FB_MSM_MIPI_DSI
 	default n
-	
-config FB_MSM_MIPI_DSI_ILITEK
-    bool
-    select FB_MSM_MIPI_DSI
-    default n
 
 config FB_MSM_MIPI_DSI_RENESAS
 	bool
 	select FB_MSM_MIPI_DSI
 	default n
+
+##Flea++
+config FB_MSM_MIPI_DSI_ILI9486
+	bool
+	select FB_MSM_MIPI_DSI
+	default n
+config FB_MSM_MIPI_DSI_HX8369
+	bool
+	select FB_MSM_MIPI_DSI
+	default n	
+##Flea--
+
 
 config FB_MSM_MIPI_DSI_TRULY
 	bool
@@ -199,6 +206,11 @@ config FB_MSM_MIPI_DSI_SIMULATOR
 	default n
 
 config FB_MSM_MIPI_DSI_NOVATEK
+        bool
+        select FB_MSM_MIPI_DSI
+        default n
+
+config FB_MSM_MIPI_DSI_ILITEK
         bool
         select FB_MSM_MIPI_DSI
         default n
@@ -225,6 +237,11 @@ config FB_MSM_MIPI_DSI_TC358764_DSI2LVDS
 	  using a single LVDS link
 	  and up to WUXGA 1920x1200 18-bit
 	  using a dual LVDS link.
+
+config FB_MSM_MIPI_DSI_HIMAX
+        bool
+        select FB_MSM_MIPI_DSI
+        default n
 
 config FB_MSM_LCDC_ST15_WXGA
     bool
@@ -321,11 +338,6 @@ config FB_MSM_MIPI_TOSHIBA_VIDEO_WVGA_PT
 	bool
 	select FB_MSM_MIPI_DSI_TOSHIBA
 	default n
-	
-config FB_MSM_MIPI_ILITEK_VIDEO_HVGA_PT
-	bool
-	select FB_MSM_MIPI_DSI_ILITEK
-	default n
 
 config FB_MSM_MIPI_TOSHIBA_VIDEO_WSVGA_PT
 	bool
@@ -340,11 +352,6 @@ config FB_MSM_MIPI_TOSHIBA_VIDEO_WUXGA
 config FB_MSM_MIPI_NOVATEK_VIDEO_QHD_PT
 	bool
 	select FB_MSM_MIPI_DSI_NOVATEK
-	default n
-
-config FB_MSM_MIPI_ILITEK_CMD_HVGA_PT
-	bool
-	select FB_MSM_MIPI_DSI_ILITEK
 	default n
 
 config FB_MSM_MIPI_NOVATEK_CMD_QHD_PT
@@ -370,6 +377,26 @@ config FB_MSM_MIPI_ORISE_VIDEO_720P_PT
 config FB_MSM_MIPI_ORISE_CMD_720P_PT
 	bool
 	select FB_MSM_MIPI_DSI_ORISE
+	default n
+
+config FB_MSM_MIPI_ILITEK_VIDEO_HVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_ILITEK
+	default n
+
+config FB_MSM_MIPI_ILITEK_CMD_HVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_ILITEK
+	default n
+
+config FB_MSM_MIPI_HIMAX_VIDEO_HVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_HIMAX
+	default n
+
+config FB_MSM_MIPI_HIMAX_CMD_HVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_HIMAX
 	default n
 
 config FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT
@@ -401,6 +428,16 @@ config FB_MSM_MIPI_NT35516_CMD_QHD_PT
         bool
         select FB_MSM_MIPI_DSI_NT35516
         default n
+
+config FB_MSM_MIPI_ILI9486_CMD_WVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_ILI9486
+	default n
+
+config FB_MSM_MIPI_ILI9486_CMD_WVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_ILI9486
+	default y
 
 
 config FB_MSM_MIPI_CHIMEI_WXGA
@@ -682,14 +719,6 @@ config FB_MSM_MIPI_TOSHIBA_VIDEO_WVGA_PT_PANEL
 config FB_MSM_MIPI_TOSHIBA_VIDEO_WSVGA_PT_PANEL
 	bool "MIPI Toshiba WSVGA PT Panel"
 	select FB_MSM_MIPI_TOSHIBA_VIDEO_WSVGA_PT
-	
-config FB_MSM_MIPI_ILITEK_VIDEO_HVGA_PT_PANEL
-	bool "MIPI ILITEK VIDEO HVGA PT Panel"
-	select FB_MSM_MIPI_ILITEK_VIDEO_HVGA_PT
-	
-config FB_MSM_MIPI_ILITEK_CMD_HVGA_PT_PANEL
-	bool "MIPI ILITEK CMD HVGA PT Panel"
-	select FB_MSM_MIPI_ILITEK_CMD_HVGA_PT
 
 config FB_MSM_MIPI_TOSHIBA_VIDEO_WUXGA_PANEL
 	bool "MIPI Toshiba WUXGA (1920x1200) Panel"
@@ -711,6 +740,14 @@ config FB_MSM_MIPI_ORISE_CMD_720P_PT_PANEL
 	bool "MIPI ORISE CMD 720P PT Panel"
 	select FB_MSM_MIPI_ORISE_CMD_720P_PT
 
+config FB_MSM_MIPI_ILITEK_VIDEO_HVGA_PT_PANEL
+	bool "MIPI ILITEK VIDEO HVGA PT Panel"
+	select FB_MSM_MIPI_ILITEK_VIDEO_HVGA_PT
+
+config FB_MSM_MIPI_ILITEK_CMD_HVGA_PT_PANEL
+	bool "MIPI ILITEK CMD HVGA PT Panel"
+	select FB_MSM_MIPI_ILITEK_CMD_HVGA_PT
+
 config FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT_PANEL
 	bool "MIPI Renesas Video FWVGA PT Panel"
 	select FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT
@@ -719,6 +756,18 @@ config FB_MSM_MIPI_RENESAS_CMD_FWVGA_PT_PANEL
 	bool "MIPI Renesas Command FWVGA PT Panel"
 	select FB_MSM_MIPI_RENESAS_CMD_FWVGA_PT
 
+config FB_MSM_MIPI_ILI9486_CMD_WVGA_PT_PANEL
+	bool "MIPI Ili9486 Command WVGA PT Panel"
+	select FB_MSM_MIPI_ILI9486_CMD_WVGA_PT
+
+config FB_MSM_MIPI_HIMAX_VIDEO_HVGA_PT_PANEL
+	bool "MIPI HIMAX Video HVGA PT Panel"
+	select FB_MSM_MIPI_HIMAX_VIDEO_HVGA_PT
+
+config FB_MSM_MIPI_HIMAX_CMD_HVGA_PT_PANEL
+	bool "MIPI HIMAX Command HVGA PT Panel"
+	select FB_MSM_MIPI_HIMAX_CMD_HVGA_PT
+
 config FB_MSM_MIPI_ORISE_VIDEO_FWVGA_PT_PANEL
 	bool "MIPI ORISE Video FWVGA PT Panel"
 	select FB_MSM_MIPI_ORISE_VIDEO_FWVGA_PT
@@ -726,7 +775,6 @@ config FB_MSM_MIPI_ORISE_VIDEO_FWVGA_PT_PANEL
 config FB_MSM_MIPI_ORISE_CMD_FWVGA_PT_PANEL
 	bool "MIPI ORISE Command FWVGA PT Panel"
 	select FB_MSM_MIPI_ORISE_CMD_FWVGA_PT
-
 config FB_MSM_MIPI_CHIMEI_WXGA_PANEL
 	bool "MIPI Chimei WXGA PT Panel"
 	select FB_MSM_MIPI_CHIMEI_WXGA

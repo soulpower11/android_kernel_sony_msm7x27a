@@ -956,7 +956,7 @@ static bool rtc_acdb_init(void)
 
 	snprintf(name, sizeof name, "get_set_abid");
 	get_set_abid_dentry = debugfs_create_file(name,
-			S_IFREG | S_IRUGO | S_IWGRP| S_IWUSR,
+			S_IFREG | S_IRUGO | S_IWUGO,
 			NULL, NULL, &rtc_acdb_debug_fops);
 	if (IS_ERR(get_set_abid_dentry)) {
 		MM_ERR("SET GET ABID debugfs_create_file failed\n");
@@ -965,7 +965,7 @@ static bool rtc_acdb_init(void)
 
 	snprintf(name1, sizeof name1, "get_set_abid_data");
 	get_set_abid_data_dentry = debugfs_create_file(name1,
-			S_IFREG | S_IRUGO | S_IWGRP| S_IWUSR,
+			S_IFREG | S_IRUGO | S_IWUGO,
 			NULL, NULL,
 			&rtc_acdb_data_debug_fops);
 	if (IS_ERR(get_set_abid_data_dentry)) {

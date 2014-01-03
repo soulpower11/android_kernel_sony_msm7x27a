@@ -23,18 +23,17 @@
 #include "devices-msm7x2xa.h"
 #include "smd_rpcrouter.h"
 
-/* FIH-SW3-KERNEL-EL-CHARGING-00 +[*/ 
+#ifndef CONFIG_FIH_PROJECT_NAN
 extern void bq27520_battery_snooze_mode(bool SetSLP);
-/* FIH-SW3-KERNEL-EL-CHARGING-00 +]*/ 
+#endif
 
 static uint32_t restart_reason = 0x776655AA;
 
 static void msm_pm_power_off(void)
 {
-	/* FIH-SW3-KERNEL-EL-CHARGING-00 +[*/ 
+#ifndef CONFIG_FIH_PROJECT_NAN
 	bq27520_battery_snooze_mode(false);
-	/* FIH-SW3-KERNEL-EL-CHARGING-00 +]*/ 
-
+#endif
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
 	for (;;)
 		;

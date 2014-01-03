@@ -103,27 +103,6 @@ int check_wakeup_irqs(void)
 	int irq;
 
 	for_each_irq_desc(irq, desc) {
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-  		if (irqd_is_wakeup_set(&desc->irq_data)) {
-            pr_info("IRQ %d %s set wake, status(%x)\n",
-					irq,
-					desc->action && desc->action->name ?
-					desc->action->name : "",
-                    desc->status_use_accessors
-                    );
-			if (desc->istate & IRQS_PENDING) {
-				pr_info("Wakeup IRQ %d %s pending, status(%x), suspend aborted\n",
-					irq,
-					desc->action && desc->action->name ?
-					desc->action->name : "",
-                    desc->status_use_accessors
-                    );
-				return -EBUSY;
-			}
-			continue;
-		}
-#else
 		if (irqd_is_wakeup_set(&desc->irq_data)) {
 			if (desc->istate & IRQS_PENDING) {
 				pr_info("Wakeup IRQ %d %s pending, suspend aborted\n",
@@ -134,8 +113,6 @@ int check_wakeup_irqs(void)
 			}
 			continue;
 		}
-#endif
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 		/*
 		 * Check the non wakeup interrupts whether they need
 		 * to be masked before finally going into suspend

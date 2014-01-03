@@ -27,10 +27,8 @@ struct msm_cpuidle_state {
 
 #ifdef CONFIG_PM
 s32 msm_cpuidle_get_deep_idle_latency(void);
-s32 msm_cpuidle_get_deepest_idle_latency(void);	//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+
 #else
 static inline s32 msm_cpuidle_get_deep_idle_latency(void) { return 0; }
-static inline s32 msm_cpuidle_get_deepest_idle_latency(void) { return 0; }	//FIH-SW-KERNEL-KC-TCXO_SD_DURING_DISPLAY_ON-01+
 #endif
 
 #ifdef CONFIG_CPU_IDLE

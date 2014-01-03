@@ -227,8 +227,7 @@ static u8 mtp_os_string[] = {
 	/* padding */
 	0
 };
-//MTD-CONN-EH-USBPORTING-03*{
-#if 0
+
 /* Microsoft Extended Configuration Descriptor Header Section */
 struct mtp_ext_config_desc_header {
 	__le32	dwLength;
@@ -246,26 +245,7 @@ struct mtp_ext_config_desc_function {
 	__u8	subCompatibleID[8];
 	__u8	reserved[6];
 };
-#else
-struct ms_ext_compatID_desc_head {
-	unsigned int dwLength;
-	unsigned short bcdVersion;
-	unsigned short wIndex;
-	unsigned char bCount;
-	unsigned char reserved[7];
-};
 
-/* extend compat ID descriptor(data section) */
-struct ms_ext_compatID_desc_data{
-	unsigned char bFirstInterfaceNumber;
-	unsigned char reserved1;
-	unsigned char compatibleID[8];
-	unsigned char subCompatibleID[8];
-	unsigned char reserved2[6];
-};
-#endif
-
-#if 0
 /* MTP Extended Configuration Descriptor */
 struct {
 	struct mtp_ext_config_desc_header	header;
@@ -283,8 +263,7 @@ struct {
 		.compatibleID = { 'M', 'T', 'P' },
 	},
 };
-#endif
-//MTD-CONN-EH-USBPORTING-03*}
+
 struct mtp_device_status {
 	__le16	wLength;
 	__le16	wCode;
@@ -1045,55 +1024,9 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 		if (ctrl->bRequest == 1
 				&& (ctrl->bRequestType & USB_DIR_IN)
 				&& (w_index == 4 || w_index == 5)) {
-			//MTD-CONN-EH-USBPORTING-03*{	
-			#if 0
 			value = (w_length < sizeof(mtp_ext_config_desc) ?
 					w_length : sizeof(mtp_ext_config_desc));
 			memcpy(cdev->req->buf, &mtp_ext_config_desc, value);
-			#else
-			int total = 0;
-			int func_num = 0;
-			int interface_num = 0;
-			struct ms_ext_compatID_desc_head *head;
-			struct ms_ext_compatID_desc_data *data;
-			struct usb_configuration        *cfg;
-			struct usb_function *f;
-
-			head = (struct ms_ext_compatID_desc_head *) cdev->req->buf;
-			data = (struct ms_ext_compatID_desc_data *)(head + 1);
-
-			/* zero clear */
-			memset( cdev->req->buf, 0x00, cdev->bufsiz);
-
-			list_for_each_entry(cfg, &cdev->configs, list)	{
-
-				list_for_each_entry(f, &cfg->functions, list)	{
-					if (!f)
-						break;
-
-					interface_num++;
-					data->bFirstInterfaceNumber = func_num;
-					printk(KERN_INFO"usb:%s MTP interface bFirstInterfaceNumber: %d\n", __func__,  data->bFirstInterfaceNumber);
-					data->reserved1 = 1;
-					if (!strcmp(f->name, "mtp"))	{
-						memcpy(data->compatibleID, "MTP", 3);
-						VDBG(cdev, "MTP interface found. Interface_num: %d.\n", interface_num );
-					}
-					data++;
-					func_num++;
-				}
-			}
-
-			total = sizeof(*head) + (sizeof(*data) * func_num);
-
-			/* header section */
-			head->dwLength = total;
-			head->bcdVersion = __constant_cpu_to_le16(0x0100);
-			head->wIndex = __constant_cpu_to_le16(4);
-			head->bCount = func_num;
-			value = min(w_length, (u16)total);
-			#endif
-			//MTD-CONN-EH-USBPORTING-03*}
 		}
 	} else if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS) {
 		DBG(cdev, "class request: %d index: %d value: %d length: %d\n",

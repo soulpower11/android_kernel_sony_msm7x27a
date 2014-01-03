@@ -15,24 +15,22 @@
 #include "msm.h"
 #include "msm_ispif.h"
 #include "msm_camera_i2c_mux.h"
-#include <mach/camera.h> /*MTD-MM-SL-SupportFlash-00+ */
-/*MTD-MM-SL-ImproveMainCamera-00+{ */
+#ifdef CONFIG_FIH_CAMERA
+#include <mach/camera.h> 
 #include <linux/i2c.h>
 #include <linux/gpio.h>
-/*MTD-MM-SL-ImproveMainCamera-00+} */
 
-struct focus_roi_info g_msm_sensor_focus_roi_info;//FIH-SW-MM-MC-ImplementCameraTouchFocusforIsx006-00+
-/* MTD-MM-SL-AddEXIF-04+{ */
+struct focus_roi_info g_msm_sensor_focus_roi_info;
 static int8_t is_flash_enable = 0;
-extern int8_t rc_af_check; /* MTD-MM-SL-SupportAF-00+ */ 
+extern int8_t rc_af_check; 
 extern bool torch_enable; 
 extern bool isx006_get_AE_value(struct msm_camera_i2c_client *client);
-/* MTD-MM-SL-AddEXIF-04+} */
 
-extern bool STARTUP;   /*MTD-MM-SL-ImproveMainCamera-00+ */
-extern bool F_STARTUP; /*MTD-MM-SL-ImproveFrontCamera-00+ */
-
-/*MTD-MM-SL-FixCoverity-00*{ */
+extern bool STARTUP;
+extern bool F_STARTUP;
+#else
+extern int camera_id;
+#endif
 /*=============================================================*/
 int32_t msm_sensor_adjust_frame_lines(struct msm_sensor_ctrl_t *s_ctrl,
 	uint16_t res)
@@ -80,15 +78,25 @@ int32_t msm_sensor_adjust_frame_lines(struct msm_sensor_ctrl_t *s_ctrl,
 	}
 	return 0;
 }
-/*MTD-MM-SL-FixCoverity-00*} */
 
 int32_t msm_sensor_write_init_settings(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc;
+#ifndef CONFIG_FIH_CAMERA
+	if(camera_id)
+#endif
 	rc = msm_sensor_write_all_conf_array(
 		s_ctrl->sensor_i2c_client,
 		s_ctrl->msm_sensor_reg->init_settings,
 		s_ctrl->msm_sensor_reg->init_size);
+#ifndef CONFIG_FIH_CAMERA
+	else
+	rc = msm_sensor_write_all_conf_array(
+		s_ctrl->sensor_i2c_client,
+		s_ctrl->msm_sensor_reg->init_settings_1,
+		s_ctrl->msm_sensor_reg->init_size_1);
+#endif
+
 	return rc;
 }
 
@@ -131,6 +139,13 @@ int32_t msm_sensor_write_output_settings(struct msm_sensor_ctrl_t *s_ctrl,
 			output_settings[res].frame_length_lines},
 	};
 
+#ifndef CONFIG_FIH_CAMERA
+	/*++ PeterShih - 20121004 Add for protecting ++*/
+	if(!s_ctrl->sensor_output_reg_addr)
+		return 0;
+	/*-- PeterShih - 20121004 Add for protecting --*/
+#endif
+
 	rc = msm_camera_i2c_write_tbl(s_ctrl->sensor_i2c_client, dim_settings,
 		ARRAY_SIZE(dim_settings), MSM_CAMERA_I2C_WORD_DATA);
 	return rc;
@@ -155,7 +170,7 @@ void msm_sensor_stop_stream(struct msm_sensor_ctrl_t *s_ctrl)
 }
 
 void msm_sensor_group_hold_on(struct msm_sensor_ctrl_t *s_ctrl)
-{ 
+{
 	msm_camera_i2c_write_tbl(
 		s_ctrl->sensor_i2c_client,
 		s_ctrl->msm_sensor_reg->group_hold_on_conf,
@@ -164,7 +179,7 @@ void msm_sensor_group_hold_on(struct msm_sensor_ctrl_t *s_ctrl)
 }
 
 void msm_sensor_group_hold_off(struct msm_sensor_ctrl_t *s_ctrl)
-{ 
+{
 	msm_camera_i2c_write_tbl(
 		s_ctrl->sensor_i2c_client,
 		s_ctrl->msm_sensor_reg->group_hold_off_conf,
@@ -180,7 +195,6 @@ int32_t msm_sensor_set_fps(struct msm_sensor_ctrl_t *s_ctrl,
 	return 0;
 }
 
-/*MTD-MM-SL-FixCoverity-00*{ */
 int32_t msm_sensor_write_exp_gain1(struct msm_sensor_ctrl_t *s_ctrl,
 		uint16_t gain, uint32_t line)
 {
@@ -235,16 +249,12 @@ int32_t msm_sensor_write_exp_gain2(struct msm_sensor_ctrl_t *s_ctrl,
 	s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
 	return 0;
 }
-/*MTD-MM-SL-FixCoverity-00*} */
 
 int32_t msm_sensor_setting1(struct msm_sensor_ctrl_t *s_ctrl,
 			int update_type, int res)
 {
 	int32_t rc = 0;
 	static int csi_config;
-	//int led_mode = 0; /*MTD-MM-SL-SupportFlash-00+ */ /*MTD-MM-SL-SupportFlash-01- */
-
-	printk("%s: update_type = %d \n", __func__, update_type);
 
 	s_ctrl->func_tbl->sensor_stop_stream(s_ctrl);
 	msleep(30);
@@ -252,17 +262,16 @@ int32_t msm_sensor_setting1(struct msm_sensor_ctrl_t *s_ctrl,
 		CDBG("Register INIT\n");
 		s_ctrl->curr_csi_params = NULL;
 		msm_sensor_enable_debugfs(s_ctrl);
-		/*MTD-MM-SL-CameraPorting-00*{ */
-		#ifndef CONFIG_FIH_CAMERA
+
+#ifndef CONFIG_FIH_CAMERA
 		msm_sensor_write_init_settings(s_ctrl);
-		#else
+#else
 		s_ctrl->func_tbl->sensor_init_setting(s_ctrl, update_type,res);
-		#endif
-		/*MTD-MM-SL-CameraPorting-00*} */
+#endif
 
 		csi_config = 0;
 	} else if (update_type == MSM_SENSOR_UPDATE_PERIODIC) {
-		printk("PERIODIC : %d\n", res);
+		CDBG("PERIODIC : %d\n", res);
 		msm_sensor_write_conf_array(
 			s_ctrl->sensor_i2c_client,
 			s_ctrl->msm_sensor_reg->mode_settings, res);
@@ -282,38 +291,11 @@ int32_t msm_sensor_setting1(struct msm_sensor_ctrl_t *s_ctrl,
 			NOTIFY_PCLK_CHANGE,
 			&s_ctrl->sensordata->pdata->ioclk.vfe_clk_rate);
 
-		/*MTD-MM-SL-CameraPorting-00*{ */
-		#ifndef CONFIG_FIH_CAMERA
+#ifndef CONFIG_FIH_CAMERA
 		s_ctrl->func_tbl->sensor_start_stream(s_ctrl);
-		#else
+#else
 		s_ctrl->func_tbl->sensor_start_stream_1(s_ctrl);
-		#endif
-		/*MTD-MM-SL-CameraPorting-00*} */
-		/*MTD-MM-SL-SupportFlash-01*{ */
-		//We  move flash triger in senser driver(isx006_v4l2.c) 
-		/*MTD-MM-SL-SupportFlash-00+{ */
-		#if 0
-		if (res == 0){
-			printk("msm_sensor_setting1: res:0 =>capture !\n");			
-			led_mode = msm_soc_get_led_mode();
-			printk("msm_sensor_setting1: led_mode:%d\n", led_mode);
-				
-			//Flash on
-			if (led_mode == LED_MODE_ON){
-				printk("msm_sensor_setting1:LED_MODE_ON, need to flash triger \n");
-				rc = msm_soc_flash_trigger();
-				if (rc < 0)
-					printk("msm_sensor_setting1: msm_soc_flash_trigger failed !\n");
-			}
-			
-		}
-		#endif
-		/*MTD-MM-SL-SupportFlash-00+} */
-		/*MTD-MM-SL-SupportFlash-01*} */
-
-        //rc = msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x002E, 0x01, MSM_CAMERA_I2C_BYTE_DATA);
-        //rc = msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x0012, 0x01, MSM_CAMERA_I2C_BYTE_DATA);
-
+#endif
 		msleep(50);
 	}
 	return rc;
@@ -359,7 +341,6 @@ int32_t msm_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 	return rc;
 }
 
-//We creat a oem set_sensor_mode function in senser driver(isx006_v4l2.c), no longer use this common function. 
 int32_t msm_sensor_set_sensor_mode(struct msm_sensor_ctrl_t *s_ctrl,
 	int mode, int res)
 {
@@ -492,6 +473,20 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 	cdata.cfgtype);
 		switch (cdata.cfgtype) {
 		case CFG_SET_FPS:
+#ifndef CONFIG_FIH_CAMERA
+			//Flea++
+			if (s_ctrl->func_tbl->
+			sensor_set_fps == NULL) {
+				rc = -EFAULT;
+				break;
+			}
+			rc = s_ctrl->func_tbl->
+				sensor_set_fps(
+				s_ctrl,
+				&(cdata.cfg.fps));
+			break;
+			//Flea--
+#endif
 		case CFG_SET_PICT_FPS:
 			if (s_ctrl->func_tbl->
 			sensor_set_fps == NULL) {
@@ -501,7 +496,11 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			rc = s_ctrl->func_tbl->
 				sensor_set_fps(
 				s_ctrl,
-				cdata.cfg.v_fps); /*MTD-MM-SL-FixMMSRecord-00* *///&(cdata.cfg.fps) 
+#ifndef CONFIG_FIH_CAMERA
+				&(cdata.cfg.fps));
+#else
+				cdata.cfg.v_fps);
+#endif
 			break;
 
 		case CFG_SET_EXP_GAIN:
@@ -548,6 +547,17 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			break;
 
 		case CFG_SET_EFFECT:
+#ifndef CONFIG_FIH_CAMERA
+			if (s_ctrl->func_tbl->
+			sensor_set_special_effect == NULL) {
+				rc = -EFAULT;
+				break;
+			}
+			rc = s_ctrl->func_tbl->
+				sensor_set_special_effect(
+				s_ctrl,
+				cdata.cfg.effect);
+#endif
 			break;
 
 		case CFG_SENSOR_INIT:
@@ -581,21 +591,19 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			break;
 
 		case CFG_START_STREAM:
-			/*MTD-MM-SL-CameraPorting-00*{ */
-			#ifndef CONFIG_FIH_CAMERA
+#ifndef CONFIG_FIH_CAMERA
 			if (s_ctrl->func_tbl->sensor_start_stream == NULL) {
 				rc = -EFAULT;
 				break;
 			}
 			s_ctrl->func_tbl->sensor_start_stream(s_ctrl);
-			#else
+#else
 			if (s_ctrl->func_tbl->sensor_start_stream_1 == NULL) {
 				rc = -EFAULT;
 				break;
 			}
 			s_ctrl->func_tbl->sensor_start_stream_1(s_ctrl);
-			#endif
-			/*MTD-MM-SL-CameraPorting-00*} */
+#endif
 			break;
 
 		case CFG_STOP_STREAM:
@@ -620,22 +628,15 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				sizeof(struct sensor_cfg_data)))
 				rc = -EFAULT;
 			break;
-			
-		/* MTD-MM-SL-AddEXIF-04+{ */
+#ifdef CONFIG_FIH_CAMERA
 		case CFG_GET_FLASH_STATE:
-			#ifdef CONFIG_ISX006
         	if(torch_enable){
-           		printk("isx006_snapshot_config--torch & flash enable\n");
            		is_flash_enable = 1;
 			}else{
            		if(isx006_get_AE_value(s_ctrl->sensor_i2c_client))
               	is_flash_enable = 1;
         	}
-        	#else
-        	is_flash_enable = 0;
-        	#endif
 			cdata.cfg.flash_state = is_flash_enable;
-			printk("isx006_sensor_config: cdata.cfg.flash_state = %d\n", cdata.cfg.flash_state);
 
 			if (copy_to_user((void *)argp,
                     &cdata,
@@ -645,11 +646,8 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
   			is_flash_enable = 0;	
 			
 			break;
-		/* MTD-MM-SL-AddEXIF-04+} */	
-		/* MTD-MM-SL-SupportAF-00+{ */
 		case CFG_GET_RC_AF_CHECK:
 			cdata.cfg.rc_af_check = rc_af_check;
-			//printk("isx006_sensor_config: cdata.cfg.rc_af_check = %d\n", cdata.cfg.rc_af_check);
 
 			if (copy_to_user((void *)argp,
                     &cdata,
@@ -659,8 +657,7 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			rc_af_check = 0;
 			
 			break;
-		/* MTD-MM-SL-SupportAF-00+} */ 	
-
+#endif
 		default:
 			rc = -EFAULT;
 			break;
@@ -805,12 +802,12 @@ int32_t msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 	return 0;
 }
 
-/*MTD-MM-SL-ImproveMainCamera-00*{ */
 int32_t msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc = 0;
 	uint16_t chipid = 0;
 
+#ifdef CONFIG_FIH_CAMERA
 	if (STARTUP == 0){
 		printk("msm_sensor_match_id:STARTUP == 0 \n");
 		rc = msm_camera_i2c_read(
@@ -825,40 +822,50 @@ int32_t msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 	} else {
 		printk("msm_sensor_match_id:STARTUP == 1 \n");
 		rc = msm_camera_i2c_read_invert(
+#else
+	rc = msm_camera_i2c_read(
+#endif
 			s_ctrl->sensor_i2c_client,
 			s_ctrl->sensor_id_info->sensor_id_reg_addr, &chipid,
 			MSM_CAMERA_I2C_WORD_DATA);
 			if (rc < 0) {
 				pr_err("%s: %s: read id failed\n", __func__,
-					s_ctrl->sensordata->sensor_name);
+				s_ctrl->sensordata->sensor_name);
 				return rc;
+#ifdef CONFIG_FIH_CAMERA
 		}
+#endif
 	}
 
-	printk("msm_sensor id: %x\n", chipid);
+	CDBG("msm_sensor id: %d\n", chipid);
+
+#ifdef CONFIG_FIH_CAMERA
 	if ((chipid != s_ctrl->sensor_id_info->sensor_id)
 		&& (chipid != s_ctrl->sensor_id_info->sensor_id2)) { /*MTD-MM-SL-CameraPorting-00* */
+#else
+	if (chipid != s_ctrl->sensor_id_info->sensor_id) {
+#endif
 		pr_err("msm_sensor_match_id chip id doesnot match\n");
 		return -ENODEV;
 	}
 	return rc;
 }
-/*MTD-MM-SL-ImproveMainCamera-00*} */
 
 struct msm_sensor_ctrl_t *get_sctrl(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct msm_sensor_ctrl_t, sensor_v4l2_subdev);
 }
 
-/*MTD-MM-SL-ImproveMainCamera-00*{ */
 int32_t msm_sensor_i2c_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	int rc = 0;
 	struct msm_sensor_ctrl_t *s_ctrl;
-	printk("%s %s_i2c_probe called\n", __func__, client->name);
+	CDBG("%s %s_i2c_probe called\n", __func__, client->name);
+#ifdef CONFIG_FIH_CAMERA
 	STARTUP = 0;
 	F_STARTUP = 0;
+#endif
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		pr_err("%s %s i2c_check_functionality failed\n",
 			__func__, client->name);
@@ -885,17 +892,15 @@ int32_t msm_sensor_i2c_probe(struct i2c_client *client,
 		return -EFAULT;
 	}
 
-	/* Power on for read sensor ID */
 	rc = s_ctrl->func_tbl->sensor_power_up(s_ctrl);
 	if (rc < 0) {
 		pr_err("%s %s power up failed\n", __func__, client->name);
 		return rc;
 	}
 
-	/* Read sensor Chip ID: */
-	if (s_ctrl->func_tbl->sensor_match_id) //Front camera
+	if (s_ctrl->func_tbl->sensor_match_id)
 		rc = s_ctrl->func_tbl->sensor_match_id(s_ctrl);
-	else //Main camera 
+	else
 		rc = msm_sensor_match_id(s_ctrl);
 	if (rc < 0)
 		goto probe_fail;
@@ -915,7 +920,6 @@ power_down:
 	s_ctrl->func_tbl->sensor_power_down(s_ctrl);
 	return rc;
 }
-/*MTD-MM-SL-ImproveMainCamera-00*} */
 
 int32_t msm_sensor_power(struct v4l2_subdev *sd, int on)
 {
@@ -973,7 +977,7 @@ int32_t msm_sensor_v4l2_s_ctrl(struct v4l2_subdev *sd,
 	CDBG("%s\n", __func__);
 	CDBG("%d\n", ctrl->id);
 
-    //FIH-SW-MM-MC-ImplementCameraTouchFocusforIsx006-00+{
+#ifdef CONFIG_FIH_CAMERA
     if (ctrl->id == V4L2_CID_FOCUS_ROI)
     {
         g_msm_sensor_focus_roi_info.x             = ctrl->focus_roi[0];
@@ -983,17 +987,8 @@ int32_t msm_sensor_v4l2_s_ctrl(struct v4l2_subdev *sd,
         g_msm_sensor_focus_roi_info.preview_ratio = ctrl->focus_roi[4];
         g_msm_sensor_focus_roi_info.num_roi       = ctrl->focus_roi[5];
             
-#if 1// Enable for debug
-        printk("msm_sensor_v4l2_s_ctrl: V4L2_CID_FOCUS_ROI: Touch AF area center = (%d, %d, %d, %d , %d), on = %d" 
-                                                                                    , ctrl->focus_roi[0]
-                                                                                    , ctrl->focus_roi[1]
-                                                                                    , ctrl->focus_roi[2]
-                                                                                    , ctrl->focus_roi[3]
-                                                                                    , ctrl->focus_roi[4]
-                                                                                    , ctrl->focus_roi[5]);
-#endif
     }
-    //FIH-SW-MM-MC-ImplementCameraTouchFocusforIsx006-00+}
+#endif
 
 	if (v4l2_ctrl == NULL)
 		return rc;
@@ -1097,7 +1092,7 @@ int msm_sensor_enable_debugfs(struct msm_sensor_ctrl_t *s_ctrl)
 	return 0;
 }
 
-/*MTD-MM-SL-ImproveMainCamera-00+{ */
+#ifdef CONFIG_FIH_CAMERA
 int fih_enable_mclk(struct msm_sensor_ctrl_t *s_ctrl)
 {
     int rc = 0;
@@ -1139,5 +1134,4 @@ error:
     pr_err("FIH_Disable_MCLK: failed !, rc = %d.\n", rc);
     return rc;
 }
-/*MTD-MM-SL-ImproveMainCamera-00+} */
-
+#endif

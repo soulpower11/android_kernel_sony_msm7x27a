@@ -403,7 +403,7 @@ static unsigned int *program_shader(unsigned int *cmds, int vtxfrag,
 static unsigned int *reg_to_mem(unsigned int *cmds, uint32_t dst,
 				uint32_t src, int dwords)
 {
-	while (dwords--) {
+	while (dwords-- > 0) {
 		*cmds++ = cp_type3_packet(CP_REG_TO_MEM, 2);
 		*cmds++ = src++;
 		*cmds++ = dst;
@@ -617,6 +617,18 @@ static void build_regsave_cmds(struct adreno_device *adreno_dev,
 	*cmd++ = REG_TP0_CHICKEN;
 	*cmd++ = tmp_ctx.reg_values[1];
 
+	if (adreno_is_a22x(adreno_dev)) {
+		unsigned int i;
+		unsigned int j = 2;
+		for (i = REG_A220_VSC_BIN_SIZE; i <=
+				REG_A220_VSC_PIPE_DATA_LENGTH_7; i++) {
+			*cmd++ = cp_type3_packet(CP_REG_TO_MEM, 2);
+			*cmd++ = i;
+			*cmd++ = tmp_ctx.reg_values[j];
+			j++;
+		}
+	}
+
 	/* Copy Boolean constants */
 	cmd = reg_to_mem(cmd, tmp_ctx.bool_shadow, REG_SQ_CF_BOOLEANS,
 			 BOOL_CONSTANTS);
@@ -744,7 +756,9 @@ static unsigned int *build_gmem2sys_cmds(struct adreno_device *adreno_dev,
 	/* disable Z */
 	*cmds++ = cp_type3_packet(CP_SET_CONSTANT, 2);
 	*cmds++ = CP_REG(REG_RB_DEPTHCONTROL);
-
+	if (adreno_is_a22x(adreno_dev))
+		*cmds++ = 0x08;
+	else
 		*cmds++ = 0;
 
 	/* set REG_PA_SU_SC_MODE_CNTL
@@ -916,10 +930,12 @@ static unsigned int *build_sys2gmem_cmds(struct adreno_device *adreno_dev,
 	*cmds++ = CP_REG(REG_PA_SC_AA_MASK);
 	*cmds++ = 0x0000ffff;	/* REG_PA_SC_AA_MASK */
 
+	if (!adreno_is_a22x(adreno_dev)) {
 		/* PA_SC_VIZ_QUERY */
 		*cmds++ = cp_type3_packet(CP_SET_CONSTANT, 2);
 		*cmds++ = CP_REG(REG_PA_SC_VIZ_QUERY);
 		*cmds++ = 0x0;		/*REG_PA_SC_VIZ_QUERY */
+	}
 
 	/* RB_COLORCONTROL */
 	*cmds++ = cp_type3_packet(CP_SET_CONSTANT, 2);
@@ -981,6 +997,9 @@ static unsigned int *build_sys2gmem_cmds(struct adreno_device *adreno_dev,
 	*cmds++ = cp_type3_packet(CP_SET_CONSTANT, 2);
 	*cmds++ = CP_REG(REG_RB_DEPTHCONTROL);
 
+	if (adreno_is_a22x(adreno_dev))
+		*cmds++ = 8;		/* disable Z */
+	else
 		*cmds++ = 0;		/* disable Z */
 
 	/* Use maximum scissor values -- quad vertices already
@@ -1030,11 +1049,23 @@ static unsigned int *build_sys2gmem_cmds(struct adreno_device *adreno_dev,
 	*cmds++ = CP_REG(REG_PA_CL_CLIP_CNTL);
 	*cmds++ = 0x00010000;
 
+	if (adreno_is_a22x(adreno_dev)) {
+		*cmds++ = cp_type3_packet(CP_SET_CONSTANT, 2);
+		*cmds++ = CP_REG(REG_A220_RB_LRZ_VSC_CONTROL);
+		*cmds++ = 0x0000000;
+
+		*cmds++ = cp_type3_packet(CP_DRAW_INDX, 3);
+		*cmds++ = 0;           /* viz query info. */
+		/* PrimType=RectList, SrcSel=AutoIndex, VisCullMode=Ignore*/
+		*cmds++ = 0x00004088;
+		*cmds++ = 3;	       /* NumIndices=3 */
+	} else {
 		/* queue the draw packet */
 		*cmds++ = cp_type3_packet(CP_DRAW_INDX, 2);
 		*cmds++ = 0;		/* viz query info. */
 		/* PrimType=RectList, NumIndices=3, SrcSel=AutoIndex */
 		*cmds++ = 0x00030088;
+	}
 
 	/* create indirect buffer command for above command sequence */
 	create_ib1(drawctxt, shadow->gmem_restore, start, cmds);
@@ -1065,8 +1096,17 @@ static void build_regrestore_cmds(struct adreno_device *adreno_dev,
 	*cmd++ = (drawctxt->gpustate.gpuaddr + REG_OFFSET) & 0xFFFFE000;
 #endif
 
+	/* Based on chip id choose the registers ranges*/
+	if (adreno_is_a220(adreno_dev)) {
+		ptr_register_ranges = register_ranges_a220;
+		reg_array_size = ARRAY_SIZE(register_ranges_a220);
+	} else if (adreno_is_a225(adreno_dev)) {
+		ptr_register_ranges = register_ranges_a225;
+		reg_array_size = ARRAY_SIZE(register_ranges_a225);
+	} else {
 		ptr_register_ranges = register_ranges_a20x;
 		reg_array_size = ARRAY_SIZE(register_ranges_a20x);
+	}
 
 
 	for (i = 0; i < (reg_array_size/2); i++) {
@@ -1096,6 +1136,19 @@ static void build_regrestore_cmds(struct adreno_device *adreno_dev,
 	*cmd++ = cp_type0_packet(REG_TP0_CHICKEN, 1);
 	tmp_ctx.reg_values[1] = virt2gpu(cmd, &drawctxt->gpustate);
 	*cmd++ = 0x00000000;
+
+	if (adreno_is_a22x(adreno_dev)) {
+		unsigned int i;
+		unsigned int j = 2;
+		for (i = REG_A220_VSC_BIN_SIZE; i <=
+				REG_A220_VSC_PIPE_DATA_LENGTH_7; i++) {
+			*cmd++ = cp_type0_packet(i, 1);
+			tmp_ctx.reg_values[j] = virt2gpu(cmd,
+				&drawctxt->gpustate);
+			*cmd++ = 0x00000000;
+			j++;
+		}
+	}
 
 	/* ALU Constants */
 	*cmd++ = cp_type3_packet(CP_LOAD_CONSTANT_CONTEXT, 3);
@@ -1404,6 +1457,37 @@ static void a2xx_drawctxt_draw_workaround(struct adreno_device *adreno_dev,
 	unsigned int cmd[11];
 	unsigned int *cmds = &cmd[0];
 
+	if (adreno_is_a225(adreno_dev)) {
+		adreno_dev->gpudev->ctx_switches_since_last_draw++;
+		/* If there have been > than
+		 * ADRENO_NUM_CTX_SWITCH_ALLOWED_BEFORE_DRAW calls to context
+		 * switches w/o gmem being saved then we need to execute
+		 * this workaround */
+		if (adreno_dev->gpudev->ctx_switches_since_last_draw >
+				ADRENO_NUM_CTX_SWITCH_ALLOWED_BEFORE_DRAW)
+			adreno_dev->gpudev->ctx_switches_since_last_draw = 0;
+		else
+			return;
+		/*
+		 * Issue an empty draw call to avoid possible hangs due to
+		 * repeated idles without intervening draw calls.
+		 * On adreno 225 the PC block has a cache that is only
+		 * flushed on draw calls and repeated idles can make it
+		 * overflow. The gmem save path contains draw calls so
+		 * this workaround isn't needed there.
+		 */
+		*cmds++ = cp_type3_packet(CP_SET_CONSTANT, 2);
+		*cmds++ = (0x4 << 16) | (REG_PA_SU_SC_MODE_CNTL - 0x2000);
+		*cmds++ = 0;
+		*cmds++ = cp_type3_packet(CP_DRAW_INDX, 5);
+		*cmds++ = 0;
+		*cmds++ = 1<<14;
+		*cmds++ = 0;
+		*cmds++ = device->mmu.setstate_memory.gpuaddr;
+		*cmds++ = 0;
+		*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
+		*cmds++ = 0x00000000;
+	} else {
 		/* On Adreno 20x/220, if the events for shader space reuse
 		 * gets dropped, the CP block would wait indefinitely.
 		 * Sending CP_SET_SHADER_BASES packet unblocks the CP from
@@ -1412,6 +1496,7 @@ static void a2xx_drawctxt_draw_workaround(struct adreno_device *adreno_dev,
 		*cmds++ = cp_type3_packet(CP_SET_SHADER_BASES, 1);
 		*cmds++ = adreno_encode_istore_size(adreno_dev)
 					| adreno_dev->pix_shader_start;
+	}
 
 	adreno_ringbuffer_issuecmds(device, context, KGSL_CMD_FLAGS_PMODE,
 			&cmd[0], cmds - cmd);
@@ -1422,9 +1507,8 @@ static void a2xx_drawctxt_save(struct adreno_device *adreno_dev,
 {
 	struct kgsl_device *device = &adreno_dev->dev;
 
-	if ((context == NULL) || (context->flags & CTXT_FLAGS_BEING_DESTOYED)) {
+	if (context == NULL)
 		return;
-	}
 
 	if (context->flags & CTXT_FLAGS_GPU_HANG)
 		KGSL_CTXT_WARN(device,
@@ -1540,10 +1624,12 @@ static void a2xx_drawctxt_restore(struct adreno_device *adreno_dev,
 		}
 	}
 
+	if (adreno_is_a20x(adreno_dev)) {
 		cmds[0] = cp_type3_packet(CP_SET_BIN_BASE_OFFSET, 1);
 		cmds[1] = context->bin_base_offset;
 		adreno_ringbuffer_issuecmds(device, context,
 			KGSL_CMD_FLAGS_NONE, cmds, 2);
+	}
 }
 
 /*
@@ -1874,26 +1960,36 @@ static void a2xx_start(struct adreno_device *adreno_dev)
 	 * Only reset CP block if all blocks have previously been
 	 * reset
 	 */
+	if (!(device->flags & KGSL_FLAGS_SOFT_RESET) ||
+		!adreno_is_a22x(adreno_dev)) {
 		adreno_regwrite(device, REG_RBBM_SOFT_RESET,
 			0xFFFFFFFF);
 		device->flags |= KGSL_FLAGS_SOFT_RESET;
-
+	} else {
+		adreno_regwrite(device, REG_RBBM_SOFT_RESET,
+			0x00000001);
+	}
 	/*
 	 * The core is in an indeterminate state until the reset
 	 * completes after 30ms.
 	 */
-	#if !defined(CONFIG_FIH_HR_MSLEEP)
 	msleep(30);
-	#else
-	hr_msleep(30);
-	#endif
 
 	adreno_regwrite(device, REG_RBBM_SOFT_RESET, 0x00000000);
 
-		/* For A20X based targets increase number of clocks
-		 * that RBBM will wait before de-asserting Register
-		 * Clock Active signal */
+	if (adreno_is_a225(adreno_dev)) {
+		/* Enable large instruction store for A225 */
+		adreno_regwrite(device, REG_SQ_FLOW_CONTROL,
+			0x18000000);
+	}
+
+	if (adreno_is_a203(adreno_dev))
+		/* For A203 increase number of clocks that RBBM
+		 * will wait before de-asserting Register Clock
+		 * Active signal */
 		adreno_regwrite(device, REG_RBBM_CNTL, 0x0000FFFF);
+	else
+		adreno_regwrite(device, REG_RBBM_CNTL, 0x00004442);
 
 	adreno_regwrite(device, REG_SQ_VS_PROGRAM, 0x00000000);
 	adreno_regwrite(device, REG_SQ_PS_PROGRAM, 0x00000000);

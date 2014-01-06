@@ -66,6 +66,7 @@ static unsigned char *fbram;
 static unsigned char *fbram_phys;
 static int fbram_size;
 static boolean bf_supported;
+static bool align_buffer = false;
 
 static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
 static int pdev_list_cnt;
@@ -181,6 +182,7 @@ int msm_fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 static int msm_fb_resource_initialized;
 
+#ifndef CONFIG_FB_BACKLIGHT
 static int lcd_backlight_registered;
 
 static void msm_fb_set_bl_brightness(struct led_classdev *led_cdev,
@@ -208,6 +210,7 @@ static struct led_classdev backlight_led = {
 	.brightness	= MAX_BACKLIGHT_BRIGHTNESS,
 	.brightness_set	= msm_fb_set_bl_brightness,
 };
+#endif
 
 #ifndef CONFIG_FIH_PROJECT_NAN
 #ifdef CONFIG_FB_MSM_LOGO
@@ -319,10 +322,6 @@ static ssize_t display_show_battery(struct device *dev,
 		unset_bl_level = mfd->panel_info.bl_max;
 		up(&bkl_sem);
 #endif
-			break;
-
-		case DISP_LOGO:
-			draw_logo(fbi);
 			break;
 
 		default:
@@ -553,10 +552,12 @@ static int msm_fb_probe(struct platform_device *pdev)
 	err = pm_runtime_set_active(mfd->fbi->dev);
 	if (err < 0)
 		printk(KERN_ERR "pm_runtime: fail to set active.\n");
+	pm_runtime_enable(mfd->fbi->dev);
 
-
+#ifndef CONFIG_LEDS_CHIP_LM3533	 //Edison change backlight regester place to board init ++
+#ifdef CONFIG_FB_BACKLIGHT
 	msm_fb_config_backlight(mfd);
-
+#else
 	/* android supports only one lcd-backlight/lcd for now */
 	if (!lcd_backlight_registered) {
 		if (led_classdev_register(&pdev->dev, &backlight_led))
@@ -564,7 +565,8 @@ static int msm_fb_probe(struct platform_device *pdev)
 		else
 			lcd_backlight_registered = 1;
 	}
-
+#endif
+#endif //Edison change backlight regester place to board init --
 
 	pdev_list[pdev_list_cnt++] = pdev;
 	msm_fb_create_sysfs(pdev);
@@ -615,15 +617,15 @@ static int msm_fb_remove(struct platform_device *pdev)
 	/* remove /dev/fb* */
 	unregister_framebuffer(mfd->fbi);
 
-
+#ifdef CONFIG_FB_BACKLIGHT
 	/* remove /sys/class/backlight */
-	backlight_device_unregister(mfd->fbi);
-
+	backlight_device_unregister(mfd->fbi->bl_dev);
+#else
 	if (lcd_backlight_registered) {
 		lcd_backlight_registered = 0;
 		led_classdev_unregister(&backlight_led);
 	}
-
+#endif
 
 #ifdef MSM_FB_ENABLE_DBGFS
 	if (mfd->sub_dir)
@@ -1210,6 +1212,11 @@ int calc_fb_offset(struct msm_fb_data_type *mfd, struct fb_info *fbi, int bpp)
 	struct msm_panel_info *panel_info = &mfd->panel_info;
 	int remainder, yres, offset;
 
+    if (!align_buffer)
+    {
+        return fbi->var.xoffset * bpp + fbi->var.yoffset * fbi->fix.line_length;
+    }
+
 	if (panel_info->mode2_yres != 0) {
 		yres = panel_info->mode2_yres;
 		remainder = (fbi->fix.line_length*yres) & (PAGE_SIZE - 1);
@@ -1772,8 +1779,12 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	/* Flip buffer */
 	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported));
 #else
-	/*MTD-MM-CL-DrawLogo-00+[*/
-	fih_load_565rle_image(INIT_IMAGE_FILE);
+
+	draw_logo(fbi);
+	mdp_set_dma_pan_info(fbi, NULL, TRUE);
+	msm_fb_blank_sub(FB_BLANK_UNBLANK, fbi, mfd->op_enable);
+	mdp_dma_pan_update(fbi);
+	msm_fb_set_backlight(mfd,9);
 
 	/* File node: /sys/class/graphics/fb?/display_battery */
 	ret = device_create_file(fbi->dev, &dev_attr_display_battery);
@@ -1965,7 +1976,7 @@ static int msm_fb_open(struct fb_info *info, int user)
 			pr_debug("%s:%d no mdp_set_dma_pan_info %d\n",
 				__func__, __LINE__, info->node);
 
-		if (msm_fb_blank_sub(FB_BLANK_UNBLANK, info, mfd->op_enable) != 0) {
+		if (msm_fb_blank_sub(FB_BLANK_UNBLANK, info, mfd->op_enable)) {
 			printk(KERN_ERR "msm_fb_open: can't turn on display!\n");
 			return -1;
 		}
@@ -4245,5 +4256,7 @@ int msm_fb_v4l2_update(void *par,
 #endif
 }
 EXPORT_SYMBOL(msm_fb_v4l2_update);
+
+module_param(align_buffer, bool, 0644);
 
 module_init(msm_fb_init);

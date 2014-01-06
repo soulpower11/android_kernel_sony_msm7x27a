@@ -347,16 +347,15 @@ CHECK		= sparse
 
 # Use the wrapper for the compiler.  This wrapper scans for new
 # warnings and causes the build to stop upon encountering them.
-# -w flags
 CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
 CFLAGS_MODULE   = -w
-AFLAGS_MODULE   =
-LDFLAGS_MODULE  = -w
+AFLAGS_MODULE   = -w
+LDFLAGS_MODULE  = 
 CFLAGS_KERNEL	= -w
-AFLAGS_KERNEL	=
+AFLAGS_KERNEL	= -w
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
 

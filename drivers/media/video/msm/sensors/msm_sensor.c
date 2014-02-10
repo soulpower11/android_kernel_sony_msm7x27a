@@ -24,13 +24,13 @@
 struct focus_roi_info g_msm_sensor_focus_roi_info;//FIH-SW-MM-MC-ImplementCameraTouchFocusforIsx006-00+
 /* MTD-MM-SL-AddEXIF-04+{ */
 static int8_t is_flash_enable = 0;
-extern int8_t rc_af_check; /* MTD-MM-SL-SupportAF-00+ */ 
-extern bool torch_enable; 
+int8_t rc_af_check; /* MTD-MM-SL-SupportAF-00+ */ 
+bool torch_enable; 
 extern bool isx006_get_AE_value(struct msm_camera_i2c_client *client);
 /* MTD-MM-SL-AddEXIF-04+} */
 
-extern bool STARTUP;   /*MTD-MM-SL-ImproveMainCamera-00+ */
-extern bool F_STARTUP; /*MTD-MM-SL-ImproveFrontCamera-00+ */
+bool STARTUP;   /*MTD-MM-SL-ImproveMainCamera-00+ */
+bool F_STARTUP; /*MTD-MM-SL-ImproveFrontCamera-00+ */
 
 /*MTD-MM-SL-FixCoverity-00*{ */
 /*=============================================================*/

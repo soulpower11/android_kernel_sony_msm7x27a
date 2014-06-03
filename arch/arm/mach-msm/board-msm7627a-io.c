@@ -25,12 +25,8 @@
 #include <linux/leds-msm-tricolor.h>
 #include <asm/gpio.h>
 #include <asm/mach-types.h>
+#include <mach/rpc_server_handset.h>
 #include <mach/pmic.h>
-
-// MTD-BSP-Y.S-Enable drivers
-#include <linux/fih_power_key.h>
-#include <linux/gpio_keys.h>
-// MTD-BSP-Y.S-Enable drivers
 
 #include "devices.h"
 #include "board-msm7627a.h"
@@ -51,7 +47,6 @@ defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C_MODULE)
 #define CLEARPAD3000_RESET_GPIO (26)
 #endif
 
-#if 0
 #define KP_INDEX(row, col) ((row)*ARRAY_SIZE(kp_col_gpios) + (col))
 
 static unsigned int kp_row_gpios[] = {31, 32, 33, 34, 35};
@@ -121,7 +116,6 @@ static struct platform_device kp_pdev = {
 		.platform_data	= &kp_pdata,
 	},
 };
-#endif
 
 /* 8625 keypad device information */
 static unsigned int kp_row_gpios_8625[] = {31};
@@ -589,8 +583,6 @@ static struct maxtouch_platform_data atmel_ts_pdata = {
 	.read_chg = atmel_ts_read_chg,
 };
 
-/* MTD-BSP-VT-GPIO-02-[ */
-#if 0
 static struct i2c_board_info atmel_ts_i2c_info[] __initdata = {
 	{
 		I2C_BOARD_INFO(ATMEL_TS_I2C_NAME, 0x4a),
@@ -598,60 +590,19 @@ static struct i2c_board_info atmel_ts_i2c_info[] __initdata = {
 		.irq = MSM_GPIO_TO_INT(ATMEL_TS_GPIO_IRQ),
 	},
 };
-#endif
-/* MTD-BSP-VT-GPIO-02-] */
 
-//MTD-BSP-Y.S-Enable drivers
-// For keypad
-static struct gpio_keys_button the_buttons[] = {
-	{
-		.gpio = 37,
-		.code = KEY_VOLUMEUP,
-		.desc = "Volume Up",
-		.wakeup	= 1,
-		.active_low = 1,
-		.debounce_interval = 50,
-		.wakeup_index = 0,
-	},
-	{
-		.gpio = 38,
-		.code = KEY_VOLUMEDOWN,
-		.desc = "Volume Down",
-		.wakeup	= 1,
-		.active_low = 1,
-		.debounce_interval = 50,
-		.wakeup_index = 1,
-	},
-};
-
-static struct gpio_keys_platform_data the_button_data = {
-	.buttons = the_buttons,
-	.nbuttons = ARRAY_SIZE(the_buttons),
-};
-
-static struct platform_device GUA_BMB_GPIO_key = {
-	.name   = "fih_gpio-keys",
-	.id     = -1,
-	.dev    = {
-		.platform_data = &the_button_data,
-	},
-};
-
-// For Power key
 static struct msm_handset_platform_data hs_platform_data = {
 	.hs_name = "7k_handset",
-	.pwr_key_delay_ms = 0, /* 0 will disable end key */
-	.interval	= 1000, /* 1000 ms */
+	.pwr_key_delay_ms = 500, /* 0 will disable end key */
 };
 
 static struct platform_device hs_pdev = {
-	.name   = "fih_power-key",
+	.name   = "msm-handset",
 	.id     = -1,
 	.dev    = {
 		.platform_data = &hs_platform_data,
 	},
 };
-//MTD-BSP-Y.S-Enable drivers
 
 #define FT5X06_IRQ_GPIO		48
 #define FT5X06_RESET_GPIO	26
@@ -830,43 +781,15 @@ void __init msm7627a_add_io_devices(void)
 		atmel_ts_pdata.max_y = 320;
 	}
 
-/* MTD-BSP-VT-GPIO-02-[ */
-#if 0
 	i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
 				atmel_ts_i2c_info,
 				ARRAY_SIZE(atmel_ts_i2c_info));
-#endif
-/* MTD-BSP-VT-GPIO-02-] */
-
-#if 0
 	/* keypad */
-/* FIH-SW-MM-VH-DISPLAY-JB00*[ */
-    if (0){
-		platform_device_register(&kp_pdev);
-	}
-/* FIH-SW-MM-VH-DISPLAY-JB00*] */
-#endif
+	platform_device_register(&kp_pdev);
 
-	// MTD-BSP-Y.S-Enable drivers
-	if( gpio_tlmm_config( GPIO_CFG( 37, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA ), GPIO_CFG_ENABLE ) )
-		pr_err( "GKEY: gpio_tlmm_config(37) failed\n" );
+	/* headset */
+	platform_device_register(&hs_pdev);
 
-	if( gpio_tlmm_config( GPIO_CFG( 38, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA ), GPIO_CFG_ENABLE ) )
-		pr_err( "GKEY: gpio_tlmm_config(38) failed\n" );
-
-	#ifdef CONFIG_FIH_PROJECT_TAP
-	if( gpio_tlmm_config( GPIO_CFG( 128, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA ), GPIO_CFG_ENABLE ) )
-		pr_err( "GKEY: gpio_tlmm_config(128) failed\n" );
-
-	if( gpio_tlmm_config( GPIO_CFG( 129, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA ), GPIO_CFG_ENABLE ) )
-		pr_err( "GKEY: gpio_tlmm_config(129) failed\n" );
-	#endif
-	
-	platform_device_register( &GUA_BMB_GPIO_key );
-	platform_device_register( &hs_pdev );
-	// MTD-BSP-Y.S-Enable drivers
-
-#if 0
 	/* LED: configure it as a pdm function */
 	if (gpio_tlmm_config(GPIO_CFG(LED_GPIO_PDM, 3,
 				GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
@@ -876,14 +799,10 @@ void __init msm7627a_add_io_devices(void)
 	else
 		platform_device_register(&led_pdev);
 
-	#ifdef CONFIG_MSM_RPC_VIBRATOR
 	/* Vibrator */
 	if (machine_is_msm7x27a_ffa() || machine_is_msm7625a_ffa()
 					|| machine_is_msm8625_ffa())
 		msm_init_pmic_vibrator();
-	#endif
-#endif // 0
-
 }
 
 void __init qrd7627a_add_io_devices(void)

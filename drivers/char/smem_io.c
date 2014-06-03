@@ -129,22 +129,3 @@ module_exit(smemio_exit);
 
 MODULE_DESCRIPTION( "SMEM IO driver" );                
 MODULE_LICENSE( "GPL" );                                 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

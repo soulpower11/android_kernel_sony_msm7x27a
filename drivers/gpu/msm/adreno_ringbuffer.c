@@ -29,16 +29,6 @@
 
 #define GSL_RB_NOP_SIZEDWORDS				2
 
-/* MTD-MM-KW-Turn_off_the_CP_DEBUG_dynamic_clock-00+{ */
-/*
- * CP DEBUG settings for all cores:
- * DYNAMIC_CLK_DISABLE [27] - turn off the dynamic clock control
- * PROG_END_PTR_ENABLE [25] - Allow 128 bit writes to the VBIF
- */
-
-#define CP_DEBUG_DEFAULT ((1 << 27) | (1 << 25))
-/* MTD-MM-KW-Turn_off_the_CP_DEBUG_dynamic_clock-00-} */
-
 void adreno_ringbuffer_submit(struct adreno_ringbuffer *rb)
 {
 	BUG_ON(rb->wptr == 0);
@@ -227,9 +217,7 @@ static int adreno_ringbuffer_load_pm4_ucode(struct kgsl_device *device)
 	KGSL_DRV_INFO(device, "loading pm4 ucode version: %d\n",
 		adreno_dev->pm4_fw[0]);
 
-	/* MTD-MM-KW-Turn_off_the_CP_DEBUG_dynamic_clock-00+{ */
-	adreno_regwrite(device, REG_CP_DEBUG, CP_DEBUG_DEFAULT);
-	/* MTD-MM-KW-Turn_off_the_CP_DEBUG_dynamic_clock-00-} */
+	adreno_regwrite(device, REG_CP_DEBUG, 0x02000000);
 	adreno_regwrite(device, REG_CP_ME_RAM_WADDR, 0);
 	for (i = 1; i < adreno_dev->pm4_fw_size; i++)
 		adreno_regwrite(device, REG_CP_ME_RAM_DATA,
@@ -340,6 +328,32 @@ int adreno_ringbuffer_start(struct adreno_ringbuffer *rb, unsigned int init_ram)
 			     rb->memptrs_desc.gpuaddr +
 			     GSL_RB_MEMPTRS_RPTR_OFFSET);
 
+	if (adreno_is_a3xx(adreno_dev)) {
+		/* enable access protection to privileged registers */
+		adreno_regwrite(device, A3XX_CP_PROTECT_CTRL, 0x00000007);
+
+		/* RBBM registers */
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_0, 0x63000040);
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_1, 0x62000080);
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_2, 0x600000CC);
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_3, 0x60000108);
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_4, 0x64000140);
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_5, 0x66000400);
+
+		/* CP registers */
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_6, 0x65000700);
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_7, 0x610007D8);
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_8, 0x620007E0);
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_9, 0x61001178);
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_A, 0x64001180);
+
+		/* RB registers */
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_B, 0x60003300);
+
+		/* VBIF registers */
+		adreno_regwrite(device, A3XX_CP_PROTECT_REG_C, 0x6B00C000);
+	}
+
 	if (adreno_is_a2xx(adreno_dev)) {
 		/* explicitly clear all cp interrupts */
 		adreno_regwrite(device, REG_CP_INT_ACK, 0xFFFFFFFF);
@@ -363,6 +377,10 @@ int adreno_ringbuffer_start(struct adreno_ringbuffer *rb, unsigned int init_ram)
 	status = adreno_ringbuffer_load_pfp_ucode(device);
 	if (status != 0)
 		return status;
+
+	/* CP ROQ queue sizes (bytes) - RB:16, ST:16, IB1:32, IB2:64 */
+	if (adreno_is_a305(adreno_dev) || adreno_is_a320(adreno_dev))
+		adreno_regwrite(device, REG_CP_QUEUE_THRESHOLDS, 0x000E0602);
 
 	rb->rptr = 0;
 	rb->wptr = 0;
@@ -474,12 +492,12 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 	*  error checking if needed
 	*/
 	total_sizedwords += flags & KGSL_CMD_FLAGS_PMODE ? 4 : 0;
+	total_sizedwords += !(flags & KGSL_CMD_FLAGS_NO_TS_CMP) ? 7 : 0;
 	/* 2 dwords to store the start of command sequence */
 	total_sizedwords += 2;
-	total_sizedwords += context ? 7 : 0;
 
-	if (adreno_is_a2xx(adreno_dev))
-		total_sizedwords += 2; /* CP_WAIT_FOR_IDLE */
+	if (adreno_is_a3xx(adreno_dev))
+		total_sizedwords += 7;
 
 	total_sizedwords += 2; /* scratchpad ts for recovery */
 	if (context->flags & CTXT_FLAGS_PER_CONTEXT_TS) {
@@ -490,9 +508,6 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 	} else {
 		total_sizedwords += 4; /* global timestamp for recovery*/
 	}
-
-	if (adreno_is_a20x(adreno_dev))
-			total_sizedwords += 2; /* CACHE_FLUSH */
 
 	ringcmds = adreno_ringbuffer_allocspace(rb, total_sizedwords);
 	/* GPU may hang during space allocation, if thats the case the current
@@ -531,36 +546,39 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 
 	/* always increment the global timestamp. once. */
 	rb->timestamp[KGSL_MEMSTORE_GLOBAL]++;
-
-	if (context && !(flags & KGSL_CMD_FLAGS_DUMMY_INTR_CMD)) {
+	if (context) {
 		if (context_id == KGSL_MEMSTORE_GLOBAL)
-			rb->timestamp[context->id] =
+			rb->timestamp[context_id] =
 				rb->timestamp[KGSL_MEMSTORE_GLOBAL];
 		else
 			rb->timestamp[context_id]++;
 	}
 	timestamp = rb->timestamp[context_id];
 
-	/* HW Workaround for MMU Page fault
-	* due to memory getting free early before
-	* GPU completes it.
-	*/
-	if (adreno_is_a2xx(adreno_dev)) {
-			GSL_RB_WRITE(ringcmds, rcmd_gpu,
-					cp_type3_packet(CP_WAIT_FOR_IDLE, 1));
-			GSL_RB_WRITE(ringcmds, rcmd_gpu, 0x00);
-	}
-
 	/* scratchpad ts for recovery */
 	GSL_RB_WRITE(ringcmds, rcmd_gpu, cp_type0_packet(REG_CP_TIMESTAMP, 1));
 	GSL_RB_WRITE(ringcmds, rcmd_gpu, rb->timestamp[KGSL_MEMSTORE_GLOBAL]);
+
+	if (adreno_is_a3xx(adreno_dev)) {
+		/*
+		 * FLush HLSQ lazy updates to make sure there are no
+		 * rsources pending for indirect loads after the timestamp
+		 */
+
+		GSL_RB_WRITE(ringcmds, rcmd_gpu,
+			cp_type3_packet(CP_EVENT_WRITE, 1));
+		GSL_RB_WRITE(ringcmds, rcmd_gpu, 0x07); /* HLSQ_FLUSH */
+		GSL_RB_WRITE(ringcmds, rcmd_gpu,
+			cp_type3_packet(CP_WAIT_FOR_IDLE, 1));
+		GSL_RB_WRITE(ringcmds, rcmd_gpu, 0x00);
+	}
 
 	if (context->flags & CTXT_FLAGS_PER_CONTEXT_TS) {
 		/* start-of-pipeline timestamp */
 		GSL_RB_WRITE(ringcmds, rcmd_gpu,
 			cp_type3_packet(CP_MEM_WRITE, 2));
 		GSL_RB_WRITE(ringcmds, rcmd_gpu, (gpuaddr +
-			KGSL_MEMSTORE_OFFSET(context_id, soptimestamp)));
+			KGSL_MEMSTORE_OFFSET(context->id, soptimestamp)));
 		GSL_RB_WRITE(ringcmds, rcmd_gpu, timestamp);
 
 		/* end-of-pipeline timestamp */
@@ -568,14 +586,14 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 			cp_type3_packet(CP_EVENT_WRITE, 3));
 		GSL_RB_WRITE(ringcmds, rcmd_gpu, CACHE_FLUSH_TS);
 		GSL_RB_WRITE(ringcmds, rcmd_gpu, (gpuaddr +
-			KGSL_MEMSTORE_OFFSET(context_id, eoptimestamp)));
+			KGSL_MEMSTORE_OFFSET(context->id, eoptimestamp)));
 		GSL_RB_WRITE(ringcmds, rcmd_gpu, timestamp);
 
 		GSL_RB_WRITE(ringcmds, rcmd_gpu,
 			cp_type3_packet(CP_MEM_WRITE, 2));
 		GSL_RB_WRITE(ringcmds, rcmd_gpu, (gpuaddr +
-			KGSL_MEMSTORE_OFFSET(KGSL_MEMSTORE_GLOBAL,
-		            eoptimestamp)));
+			      KGSL_MEMSTORE_OFFSET(KGSL_MEMSTORE_GLOBAL,
+				      eoptimestamp)));
 		GSL_RB_WRITE(ringcmds, rcmd_gpu,
 			rb->timestamp[KGSL_MEMSTORE_GLOBAL]);
 	} else {
@@ -583,18 +601,13 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 			cp_type3_packet(CP_EVENT_WRITE, 3));
 		GSL_RB_WRITE(ringcmds, rcmd_gpu, CACHE_FLUSH_TS);
 		GSL_RB_WRITE(ringcmds, rcmd_gpu, (gpuaddr +
-				KGSL_MEMSTORE_OFFSET(context_id, eoptimestamp)));
-		GSL_RB_WRITE(ringcmds, rcmd_gpu, rb->timestamp[context_id]);
-
+			      KGSL_MEMSTORE_OFFSET(KGSL_MEMSTORE_GLOBAL,
+				      eoptimestamp)));
+		GSL_RB_WRITE(ringcmds, rcmd_gpu,
+			rb->timestamp[KGSL_MEMSTORE_GLOBAL]);
 	}
 
-	if (adreno_is_a20x(adreno_dev)) {
-			GSL_RB_WRITE(ringcmds, rcmd_gpu,
-					cp_type3_packet(CP_EVENT_WRITE, 1));
-			GSL_RB_WRITE(ringcmds, rcmd_gpu, CACHE_FLUSH);
-	}
-
-	if (context) {
+	if (!(flags & KGSL_CMD_FLAGS_NO_TS_CMP)) {
 		/* Conditional execution based on memory values */
 		GSL_RB_WRITE(ringcmds, rcmd_gpu,
 			cp_type3_packet(CP_COND_EXEC, 4));
@@ -612,33 +625,18 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 		GSL_RB_WRITE(ringcmds, rcmd_gpu, CP_INT_CNTL__RB_INT_MASK);
 	}
 
+	if (adreno_is_a3xx(adreno_dev)) {
+		/* Dummy set-constant to trigger context rollover */
+		GSL_RB_WRITE(ringcmds, rcmd_gpu,
+			cp_type3_packet(CP_SET_CONSTANT, 2));
+		GSL_RB_WRITE(ringcmds, rcmd_gpu,
+			(0x4<<16)|(A3XX_HLSQ_CL_KERNEL_GROUP_X_REG - 0x2000));
+		GSL_RB_WRITE(ringcmds, rcmd_gpu, 0);
+	}
+
 	adreno_ringbuffer_submit(rb);
 
 	return timestamp;
-}
-
-void
-adreno_ringbuffer_issuecmds_intr(struct kgsl_device *device,
-                                               struct kgsl_context *k_ctxt,
-                                               unsigned int *cmds,
-                                               int sizedwords)
-{
-   struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
-   struct adreno_ringbuffer *rb = &adreno_dev->ringbuffer;
-   struct adreno_context *a_ctxt = NULL;
-
-   if (!k_ctxt)
-           return;
-
-   a_ctxt = k_ctxt->devctxt;
-
-   if (k_ctxt->id == KGSL_CONTEXT_INVALID ||
-           a_ctxt == NULL ||
-           device->state & KGSL_STATE_HUNG)
-           return;
-
-   adreno_ringbuffer_addcmds(rb, a_ctxt, KGSL_CMD_FLAGS_DUMMY_INTR_CMD,
-                   cmds, sizedwords);
 }
 
 unsigned int

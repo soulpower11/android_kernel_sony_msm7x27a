@@ -1118,7 +1118,9 @@ struct v4l2_output {
 struct v4l2_control {
 	__u32		     id;
 	__s32		     value;
+#ifndef CONFIG_FIH_PROJECT_NAN
     __u16		     focus_roi[6];//FIH-SW-MM-MC-ImplementCameraTouchFocusforIsx006-00+
+#endif
 };
 
 struct v4l2_ext_control {

@@ -84,5 +84,4 @@ obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 
 extra-y := $(head-y) init_task.o vmlinux.lds
 
-# FIH-SW3-KERNEL-TH-write_panic_file-00+
-obj-y	+= fih_sw_info.o
+obj-$(CONFIG_FIH_DEVELOPMENT_TOOL) += fih_sw_info.o

@@ -352,9 +352,7 @@ static int syslog_action_restricted(int type)
 	if (dmesg_restrict)
 		return 1;
 	/* Unless restricted, we allow "read all" and "get buffer size" for everybody */
-    /* FIH-SW3-KERNEL-TH-add_SYSLOG_ACTION_READ-00*[ */
-	return type != SYSLOG_ACTION_READ_ALL && type != SYSLOG_ACTION_SIZE_BUFFER && type != SYSLOG_ACTION_READ;
-    /* FIH-SW3-KERNEL-TH-add_SYSLOG_ACTION_READ-00*] */
+	return type != SYSLOG_ACTION_READ_ALL && type != SYSLOG_ACTION_SIZE_BUFFER;
 }
 
 static int check_syslog_permissions(int type, bool from_file)
@@ -1162,14 +1160,7 @@ int update_console_cmdline(char *name, int idx, char *name_new, int idx_new, cha
 	return -1;
 }
 
-/* FIH-SW3-KERNEL-TH-dynamically_disable_UART-00*[ */ 
-#ifdef CONFIG_FEATURE_FIH_SW3_BUILDTYPE_DEBUG
-bool console_suspend_enabled = 0;
-#else
 bool console_suspend_enabled = 1;
-#endif
-/* FIH-SW3-KERNEL-TH-dynamically_disable_UART-00*[ */ 
-
 EXPORT_SYMBOL(console_suspend_enabled);
 
 static int __init console_suspend_disable(char *str)

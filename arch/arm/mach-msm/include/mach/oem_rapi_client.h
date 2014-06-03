@@ -28,6 +28,26 @@ enum {
 	 * list of oem rapi client events
 	 */
 
+	/*++ Huize - 20121107 Add for proximity threshold ++*/
+	OEM_RAPI_CLIENT_EVENT_PROXIMITY_THRESHOLD_GET,
+	OEM_RAPI_CLIENT_EVENT_PROXIMITY_THRESHOLD_SET,
+	/*-- Huize - 20121107 Add for proximity threshold --*/
+
+	/*++ FelexChing - 20120505 Add for wlan mac ++*/
+	OEM_RAPI_CLIENT_EVENT_WLAN_MAC_GET,
+	OEM_RAPI_CLIENT_EVENT_WLAN_MAC_SET,
+	/*-- FelexChing - 20120505 Add for wlan mac --*/
+
+	/*++ Huize - 20121107 Add for acceleromert axis calibrate ++*/
+	OEM_RAPI_CLIENT_EVENT_ACCELEROMETER_AXIS_OFFSET_GET,
+	OEM_RAPI_CLIENT_EVENT_ACCELEROMETER_AXIS_OFFSET_SET,
+	/*-- Huize - 20121107 Add for acceleromert axis calibrate --*/
+
+	/*++ FelexChing - 20120807 Add for wifi calibrate ++*/
+	OEM_RAPI_CLIENT_EVENT_WIFI_CALI_GET,
+	OEM_RAPI_CLIENT_EVENT_WIFI_CALI_SET,
+	/*-- FelexChing - 20120807 Add for wifi calibrate --*/
+
 	OEM_RAPI_CLIENT_EVENT_MAX
 
 };
@@ -70,6 +90,10 @@ int oem_rapi_client_streaming_function(
 	struct oem_rapi_client_streaming_func_ret *ret);
 
 int oem_rapi_client_close(void);
+
+/*++ Huize - 20130325 Add general API on kernel side for communicating with modem ++*/
+int oem_rapi_client_rpc(uint32_t event, char* input, char** output, uint32_t buffSize);
+/*-- Huize - 20130325 Add general API on kernel side for communicating with modem --*/
 
 struct msm_rpc_client *oem_rapi_client_init(void);
 

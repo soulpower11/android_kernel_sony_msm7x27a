@@ -27,9 +27,7 @@ config IRQ_WORK
 	bool
 	depends on HAVE_IRQ_WORK
 
-#MTD-SI-JS-AddConfig-00[
 source init/Kconfig_FIH
-#MTD-SI-JS-AddConfig-00]
 
 menu "General setup"
 
@@ -1248,7 +1246,7 @@ config PCI_QUIRKS
           unaffected by PCI quirks.
 
 config SLUB_DEBUG
-	default y
+	default n
 	bool "Enable SLUB debugging support" if EXPERT
 	depends on SLUB && SYSFS
 	help

@@ -102,7 +102,6 @@ static void set_cpu_work(struct work_struct *work)
 }
 #endif
 
-static int print_err = 0; /*KERNEL-SC-cpu-frequency-01+*/
 static int msm_cpufreq_target(struct cpufreq_policy *policy,
 				unsigned int target_freq,
 				unsigned int relation)
@@ -126,25 +125,12 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 	mutex_lock(&per_cpu(cpufreq_suspend, policy->cpu).suspend_mutex);
 
 	if (per_cpu(cpufreq_suspend, policy->cpu).device_suspended) {
-		/*KERNEL-SC-cpu-frequency-01*[*/
-		if( !print_err )
-		{
-			pr_err("%s: cpufreq: cpu%d scheduling frequency change in suspend(Set target_freq=%lu Failed!)\n", 
-				__func__,
-				policy->cpu,
-				 ((unsigned long) target_freq)
-				 ); /*Kernel-SC-show-cpuFreq-error-msg-01**/
-
-			print_err = 1;
-		}
-		/*KERNEL-SC-cpu-frequency-01*]*/
-		
+		pr_debug("cpufreq: cpu%d scheduling frequency change "
+				"in suspend.\n", policy->cpu);
 		ret = -EFAULT;
 		goto done;
 	}
 
-	print_err = 0;/*KERNEL-SC-cpu-frequency-01+*/
-	
 	table = cpufreq_frequency_get_table(policy->cpu);
 	if (cpufreq_frequency_table_target(policy, table, target_freq, relation,
 			&index)) {

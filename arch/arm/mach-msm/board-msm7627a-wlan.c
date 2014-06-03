@@ -254,17 +254,6 @@ static unsigned int msm_AR600X_setup_power(bool on)
 		}
 		gpio_set_value(gpio_wlan_sys_rest_en, 1);
 	} else {
-#if 1
-	       rc = gpio_tlmm_config(GPIO_CFG(gpio_wlan_sys_rest_en, 0,
-					GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
-					GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s gpio_tlmm_config 119 failed,error = %d\n",
-				__func__, rc);
-			goto qrd_gpio_fail;
-		}
-		gpio_set_value(gpio_wlan_sys_rest_en, 1);
-#else 
 		rc = gpio_request(gpio_wlan_sys_rest_en, "WLAN_DEEP_SLEEP_N");
 		if (rc) {
 			pr_err("%s: WLAN sys_rest_en GPIO %d request failed %d\n",
@@ -277,7 +266,6 @@ static unsigned int msm_AR600X_setup_power(bool on)
 			pr_err("%s: wlan_set_gpio = %d\n", __func__, rc);
 			goto gpio_fail;
 		}
-#endif
 	}
 
 	/* Enable the A0 clock */
@@ -303,8 +291,11 @@ set_clock_fail:
 	setup_wlan_clock(0);
 set_gpio_fail:
 	setup_wlan_gpio(0);
-//gpio_fail:
-//	gpio_free(gpio_wlan_sys_rest_en);
+gpio_fail:
+	if (!(machine_is_msm7627a_qrd1() || machine_is_msm7627a_evb() ||
+	    machine_is_msm8625_evb() || machine_is_msm8625_evt() ||
+	    machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7()))
+			gpio_free(gpio_wlan_sys_rest_en);
 qrd_gpio_fail:
 	/* GPIO_WLAN_3V3_EN is only required for the QRD7627a */
 	if (machine_is_msm7627a_qrd1())
@@ -352,24 +343,12 @@ static unsigned int msm_AR600X_shutdown_power(bool on)
 		}
 		gpio_set_value(gpio_wlan_sys_rest_en, 0);
 	} else {
-#if 1
-                rc = gpio_tlmm_config(GPIO_CFG(gpio_wlan_sys_rest_en, 0,
-					GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
-					GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s gpio_tlmm_config 119 failed,error = %d\n",
-				__func__, rc);
-			goto gpio_fail;
-		}
-		gpio_set_value(gpio_wlan_sys_rest_en, 0);
-#else
 		rc = setup_wlan_gpio(on);
 		if (rc) {
 			pr_err("%s: setup_wlan_gpio = %d\n", __func__, rc);
 			goto set_gpio_fail;
 		}
 		gpio_free(gpio_wlan_sys_rest_en);
-#endif
 	}
 
 	/* GPIO_WLAN_3V3_EN is only required for the QRD7627a */
@@ -396,8 +375,8 @@ static unsigned int msm_AR600X_shutdown_power(bool on)
 	return 0;
 set_clock_fail:
 	setup_wlan_clock(0);
-//set_gpio_fail:
-//	setup_wlan_gpio(0);
+set_gpio_fail:
+	setup_wlan_gpio(0);
 gpio_fail:
 	if (!(machine_is_msm7627a_qrd1() || machine_is_msm7627a_evb() ||
 	    machine_is_msm8625_evb() || machine_is_msm8625_evt() ||
@@ -409,7 +388,6 @@ qrd_gpio_fail:
 		gpio_free(GPIO_WLAN_3V3_EN);
 reg_disable:
 	wlan_switch_regulators(0);
-//out:
 	pr_info("WLAN power-down failed\n");
 	return rc;
 }

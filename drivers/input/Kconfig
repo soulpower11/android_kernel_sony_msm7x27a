@@ -188,9 +188,7 @@ source "drivers/input/touchscreen/Kconfig"
 
 source "drivers/input/misc/Kconfig"
 
-# FIH-SW2-PERIPHERAL-FG-SENSOR-00+[
 source "drivers/input/sensor/Kconfig"
-# FIH-SW2-PERIPHERAL-FG-SENSOR-00+]
 
 endif
 

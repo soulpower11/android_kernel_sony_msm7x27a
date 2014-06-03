@@ -31,7 +31,6 @@ struct rq_data rq_info;
 struct workqueue_struct *rq_wq;
 spinlock_t rq_lock;
 
-extern void count_cpu_time(void); /*Kernel-SC-add-cpu-usage-func-00+*/
 /*
  * Per cpu nohz control structure
  */
@@ -87,8 +86,6 @@ static void tick_do_update_jiffies64(ktime_t now)
 		tick_next_period = ktime_add(last_jiffies_update, tick_period);
 	}
 	write_sequnlock(&xtime_lock);
-	
-	count_cpu_time(); /*Kernel-SC-add-cpu-usage-func-00+*/
 }
 
 /*

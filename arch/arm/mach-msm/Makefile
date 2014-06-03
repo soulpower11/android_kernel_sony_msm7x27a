@@ -240,42 +240,30 @@ obj-$(CONFIG_MACH_MSM8X60_FUSN_FFA) += board-msm8x60.o mdm.o
 obj-$(CONFIG_TROUT_H2W) += board-trout-h2w.o
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 obj-$(CONFIG_TROUT_PWRSINK) += htc_pwrsink.o
-obj-$(CONFIG_ARCH_MSM7X27) += clock-pcom-lookup.o
-obj-$(CONFIG_MACH_MSM7X27_SURF) += board-msm7x27.o devices-msm7x27.o
-obj-$(CONFIG_MACH_MSM7X27_FFA) += board-msm7x27.o devices-msm7x27.o
-#MTD-BSP-VT-BringUp-00*[
+#obj-$(CONFIG_ARCH_MSM7X27) += clock-pcom-lookup.o
+#obj-$(CONFIG_MACH_MSM7X27_SURF) += board-msm7x27.o devices-msm7x27.o
+#obj-$(CONFIG_MACH_MSM7X27_FFA) += board-msm7x27.o devices-msm7x27.o
 #obj-$(CONFIG_ARCH_MSM7X27A) += clock-pcom-lookup.o devices-msm7x27a.o
-obj-$(CONFIG_ARCH_MSM7X27A) += clock-pcom-lookup.o
-board-7627a-all-objs += board-msm7627a-storage.o board-msm7627a-bt.o board-msm7627a-camera.o
-board-7627a-all-objs += audio-7627a-devices.o
-board-7627a-all-objs += board-msm7627a-display.o board-msm7627a-wlan.o board-msm7627a-io.o
+#board-7627a-all-objs += board-msm7627a-storage.o board-msm7627a-bt.o board-msm7627a-camera.o
+#board-7627a-all-objs += audio-7627a-devices.o
+#board-7627a-all-objs += board-msm7627a-display.o board-msm7627a-wlan.o board-msm7627a-io.o
 #obj-$(CONFIG_MACH_MSM7X27A_RUMI3) += board-msm7x27a.o board-7627a-all.o
 #obj-$(CONFIG_MACH_MSM7X27A_SURF) += board-msm7x27a.o board-7627a-all.o
-#obj-$(CONFIG_MACH_MSM7X27A_FFA) += board-7627a-all.o
-obj-$(CONFIG_MACH_MSM7X27A_RUMI3) += board-7627a-all.o
-obj-$(CONFIG_MACH_MSM7X27A_SURF) += board-7627a-all.o
-obj-$(CONFIG_MACH_MSM7X27A_FFA) += board-7627a-all.o
-#MTD-BSP-VT-BringUp-00*]
-#MTD-BSP-VT-HWID-01+[
-obj-$(CONFIG_FIH_MACH_TAMSUI_JLO) += board-tamsui-jlo.o devices-tamsui-jlo.o
-obj-$(CONFIG_FIH_MACH_TAMSUI_TAP) += board-tamsui-tapioca.o devices-tamsui-tapioca.o
-#MTD-BSP-VT-HWID-01+]
-obj-$(CONFIG_MACH_MSM7627A_QRD1) += board-qrd7627a.o board-7627a-all.o
-obj-$(CONFIG_MACH_MSM7627A_QRD3) += board-qrd7627a.o board-7627a-all.o
-obj-$(CONFIG_MACH_MSM7627A_EVB) += board-qrd7627a.o board-7627a-all.o
-#MTD-BSP-VT-BringUp-00*[
+#obj-$(CONFIG_MACH_MSM7X27A_FFA) += board-msm7x27a.o board-7627a-all.o
+#obj-$(CONFIG_MACH_MSM7627A_QRD1) += board-qrd7627a.o board-7627a-all.o
+#obj-$(CONFIG_MACH_MSM7627A_QRD3) += board-qrd7627a.o board-7627a-all.o
+#obj-$(CONFIG_MACH_MSM7627A_EVB) += board-qrd7627a.o board-7627a-all.o
+obj-$(CONFIG_FIH_MACH_TAMSUI_JLO) += board-tamsui-jlo.o clock-pcom-lookup.o board-tamsui-devices.o board-tamsui-camera.o board-tamsui-audio.o board-tamsui-display.o board-tamsui-io.o board-tamsui-storage.o board-tamsui-bt.o board-tamsui-wlan.o board-tamsui-wifi.o board-tamsui-regulator.o rpc_nv.o fih_proc_fs.o
+obj-$(CONFIG_FIH_MACH_TAMSUI_MES) += board-tamsui-mes.o clock-pcom-lookup.o board-tamsui-devices.o board-tamsui-camera.o board-tamsui-audio.o board-tamsui-display.o board-tamsui-io.o board-tamsui-storage.o board-tamsui-bt.o board-tamsui-wlan.o board-tamsui-wifi.o board-tamsui-regulator.o rpc_nv.o fih_proc_fs.o
+obj-$(CONFIG_FIH_MACH_TAMSUI_TAP) += board-tamsui-tap.o clock-pcom-lookup.o board-tamsui-devices.o board-tamsui-camera.o board-tamsui-audio.o board-tamsui-display.o board-tamsui-io.o board-tamsui-storage.o board-tamsui-bt.o board-tamsui-wlan.o board-tamsui-wifi.o board-tamsui-regulator.o rpc_nv.o fih_proc_fs.o
+obj-$(CONFIG_FIH_MACH_TAMSUI_NAN) += board-nanhu.o clock-pcom-lookup.o board-nanhu-devices.o board-nanhu-camera.o board-nanhu-audio.o board-nanhu-display.o board-nanhu-wlan.o board-nanhu-io.o board-nanhu-storage.o board-nanhu-bt.o msm_smem_iface.o mpm-8625.o board-nanhu-regulator.o
 #obj-$(CONFIG_ARCH_MSM8625) += msm_smem_iface.o devices-msm7x27a.o clock-pcom-lookup.o mpm-8625.o
-obj-$(CONFIG_ARCH_MSM8625) += msm_smem_iface.o clock-pcom-lookup.o mpm-8625.o
 #obj-$(CONFIG_MACH_MSM8625_RUMI3) += board-msm7x27a.o
 #obj-$(CONFIG_MACH_MSM8625_SURF) +=  board-msm7x27a.o board-7627a-all.o
-obj-$(CONFIG_MACH_MSM8625_SURF) +=  board-7627a-all.o
-obj-$(CONFIG_MACH_MSM8625_EVB) +=  board-qrd7627a.o board-7627a-all.o
-obj-$(CONFIG_MACH_MSM8625_QRD7) +=  board-qrd7627a.o board-7627a-all.o
+#obj-$(CONFIG_MACH_MSM8625_EVB) +=  board-qrd7627a.o board-7627a-all.o
+#obj-$(CONFIG_MACH_MSM8625_QRD7) +=  board-qrd7627a.o board-7627a-all.o
 #obj-$(CONFIG_MACH_MSM8625_FFA) += board-msm7x27a.o board-7627a-all.o
 #obj-$(CONFIG_MACH_MSM8625_EVT) += board-msm7x27a.o board-7627a-all.o
-obj-$(CONFIG_MACH_MSM8625_FFA) += board-7627a-all.o
-obj-$(CONFIG_MACH_MSM8625_EVT) += board-7627a-all.o
-#MTD-BSP-VT-BringUp-00*]
 obj-$(CONFIG_ARCH_MSM7X30) += board-msm7x30.o devices-msm7x30.o memory_topology.o
 obj-$(CONFIG_ARCH_MSM7X30) += clock-local.o clock-7x30.o acpuclock-7x30.o clock-pll.o
 obj-$(CONFIG_MACH_MSM7X25_SURF) += board-msm7x27.o devices-msm7x25.o
@@ -386,41 +374,22 @@ ifdef CONFIG_MSM_PROC_COMM_REGULATOR
 obj-$(CONFIG_MACH_MSM7X27_SURF) += board-msm7627-regulator.o
 obj-$(CONFIG_MACH_MSM7X27_FFA) += board-msm7627-regulator.o
 obj-$(CONFIG_ARCH_MSM7X30) += board-msm7x30-regulator.o
-obj-$(CONFIG_ARCH_MSM7X27A) += board-msm7x27a-regulator.o
+#obj-$(CONFIG_ARCH_MSM7X27A) += board-msm7x27a-regulator.o
 endif
 
 obj-$(CONFIG_ARCH_MSM8960) += mdm2.o mdm_common.o
-
-# FIH-SW3-KERNEL-TH-porting_dbgcfgtool-00+
-obj-y += dbgcfgtool.o
-obj-$(CONFIG_FEATURE_FIH_SW3_LAST_ALOG) += alog_ram_console.o
-# FIH-SW3-KERNEL-TH-add_last_alog-00+
-# MTD-SW3-KERNEL-MP-RPC_Read_NV-00+
-obj-y += rpc_nv.o
-
 obj-$(CONFIG_MSM_RTB) += msm_rtb.o
 obj-$(CONFIG_MSM_CACHE_ERP) += cache_erp.o
 obj-$(CONFIG_MSM_EBI_ERP) += ebi_erp.o
 obj-$(CONFIG_MSM_CACHE_DUMP) += msm_cache_dump.o
-obj-$(CONFIG_SONY_SSM)			+= sony_ssm.o
 
 obj-$(CONFIG_MSM_HSIC_SYSMON) += hsic_sysmon.o
 obj-$(CONFIG_MSM_HSIC_SYSMON_TEST) += hsic_sysmon_test.o
 
 obj-$(CONFIG_MSM_RPM_SMD) += rpm-smd.o
-
 obj-$(CONFIG_MSM_CPR) += msm_cpr.o
 obj-$(CONFIG_MSM_VP_REGULATOR) += msm_vp.o
 
 ifdef CONFIG_MSM_CPR
 obj-$(CONFIG_DEBUG_FS) += msm_cpr-debug.o
 endif
-
-#MTD-BSP-VT-INFO-00+[
-obj-y +=fih_proc_fs.o
-#MTD-BSP-VT-INFO-00+]
-# CONN-EC-WIFI-Porting-01+[
-obj-y += board-sisi-wifi.o
-# CONN-EC-WIFI-Porting-01+]
-
-

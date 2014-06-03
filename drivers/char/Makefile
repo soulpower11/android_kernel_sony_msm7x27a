@@ -39,6 +39,7 @@ obj-$(CONFIG_TOSHIBA)		+= toshiba.o
 obj-$(CONFIG_I8K)		+= i8k.o
 obj-$(CONFIG_DS1620)		+= ds1620.o
 obj-$(CONFIG_HW_RANDOM)		+= hw_random/
+obj-$(CONFIG_FRANDOM)           += frandom/
 obj-$(CONFIG_PPDEV)		+= ppdev.o
 obj-$(CONFIG_NWBUTTON)		+= nwbutton.o
 obj-$(CONFIG_NWFLASH)		+= nwflash.o
@@ -67,7 +68,6 @@ obj-$(CONFIG_TILE_SROM)		+= tile-srom.o
 obj-$(CONFIG_MSM_ROTATOR)	+= msm_rotator.o
 obj-$(CONFIG_MMC_GENERIC_CSDIO)	+= csdio.o
 obj-$(CONFIG_DIAG_CHAR)		+= diag/
-# BSP-AlwaysChen-PortingFrom2045-03+
+ifndef CONFIG_FIH_PROJECT_NAN
 obj-y                           += smem_io.o
-# COMM-CD-WIFI-body SAR solution in hotspot scenario-00+
-obj-y                           += wlandev.o
+endif

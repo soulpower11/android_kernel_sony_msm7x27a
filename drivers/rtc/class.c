@@ -20,11 +20,6 @@
 
 #include "rtc-core.h"
 
-/* FIH-SW3-KERNEL-TH-add_last_alog-00+[ */
-#ifdef CONFIG_FIH_LAST_ALOG
-#include "mach/alog_ram_console.h"
-#endif
-/* FIH-SW3-KERNEL-TH-add_last_alog-00+] */
 
 static DEFINE_IDA(rtc_ida);
 struct class *rtc_class;
@@ -51,18 +46,6 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 	struct rtc_device	*rtc = to_rtc_device(dev);
 	struct rtc_time		tm;
 	struct timespec		delta, delta_delta;
-
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+]*/
-#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-    printk(KERN_INFO "[PM]rtc_suspend(): %s, dev_name = %s\n", rtc->name, dev_name(&rtc->dev));
-#endif
-/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+]*/
-
-/* FIH-SW3-KERNEL-TH-add_last_alog-00+[ */
-#ifdef CONFIG_FIH_LAST_ALOG
-	alog_ram_console_sync_time(LOG_TYPE_ALL, SYNC_BEFORE);
-#endif	
-/* FIH-SW3-KERNEL-TH-add_last_alog-00+] */
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 
@@ -134,12 +117,6 @@ static int rtc_resume(struct device *dev)
 
 	if (sleep_time.tv_sec >= 0)
 		timekeeping_inject_sleeptime(&sleep_time);
-
-/* FIH-SW3-KERNEL-TH-add_last_alog-00+[ */
-#ifdef CONFIG_FIH_LAST_ALOG
-	alog_ram_console_sync_time(LOG_TYPE_ALL, SYNC_AFTER);
-#endif	
-/* FIH-SW3-KERNEL-TH-add_last_alog-00+] */
 	return 0;
 }
 

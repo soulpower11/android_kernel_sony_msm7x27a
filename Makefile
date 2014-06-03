@@ -351,11 +351,11 @@ CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   =
-AFLAGS_MODULE   =
-LDFLAGS_MODULE  =
+CFLAGS_MODULE   = -w
+AFLAGS_MODULE   = -w
+LDFLAGS_MODULE  = 
 CFLAGS_KERNEL	= -w
-AFLAGS_KERNEL	=
+AFLAGS_KERNEL	= -w
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
 
@@ -372,10 +372,6 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -Wno-maybe-uninitialized \
-		   -Wno-unused-function \
-		   -Wno-unused-variable \
-		   -Wno-declaration-after-statement \
 		   -fno-delete-null-pointer-checks
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
@@ -567,9 +563,11 @@ endif # $(dot-config)
 all: vmlinux
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-KBUILD_CFLAGS	+= -Os
+#KBUILD_CFLAGS	+= -Os
+KBUILD_CFLAGS	+= -Os  $(call cc-disable-warning,maybe-uninitialized,)
 else
-KBUILD_CFLAGS	+= -O2
+#KBUILD_CFLAGS	+= -O2
+KBUILD_CFLAGS	+= -O2  $(call cc-disable-warning,maybe-uninitialized,) $(call cc-disable-warning,implicit-function-declaration,) $(call cc-disable-warning,strict-prototypes,) $(call cc-disable-warning,unused-function,) $(call cc-disable-warning,unused-variable,)
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile

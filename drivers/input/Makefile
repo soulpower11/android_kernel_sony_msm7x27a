@@ -23,9 +23,7 @@ obj-$(CONFIG_INPUT_TABLET)	+= tablet/
 obj-$(CONFIG_INPUT_TOUCHSCREEN)	+= touchscreen/
 obj-$(CONFIG_INPUT_MISC)	+= misc/
 
-# FIH-SW2-PERIPHERAL-FG-SENSOR-00+[
 obj-$(CONFIG_INPUT_SENSOR)	+= sensor/
-# FIH-SW2-PERIPHERAL-FG-SENSOR-00+]
 
 obj-$(CONFIG_INPUT_APMPOWER)	+= apm-power.o
 obj-$(CONFIG_INPUT_OF_MATRIX_KEYMAP) += of_keymap.o

@@ -80,8 +80,8 @@ static int __init mipi_cmd_ilitek_hvga_pt_init(void)
 	pinfo.mipi.stream = 0;  /* dma_p */
 	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_SW;
 	pinfo.mipi.dma_trigger = DSI_CMD_TRIGGER_SW;
-/* FIH-SW-MM-VH-DISPLAY-33* */
-	pinfo.mipi.frame_rate = 63;
+/* FIH-SW-MM-VH-DISPLAY-23* */
+	pinfo.mipi.frame_rate = 62;
 	pinfo.mipi.dsi_phy_db = &dsi_cmd_mode_phy_db;
 	pinfo.mipi.dlane_swap = 0x01;
 	pinfo.lcdc.xres_pad = 0;
@@ -97,7 +97,7 @@ static int __init mipi_cmd_ilitek_hvga_pt_init(void)
 	pinfo.mipi.rx_eot_ignore = 0;
 	pinfo.lcd.vsync_enable = TRUE;
 	pinfo.lcd.hw_vsync_mode = TRUE;
-	//pinfo.mipi.dsi_pclk_rate = 12000000;
+	pinfo.mipi.dsi_pclk_rate = 12000000;
 
 	ret = mipi_ilitek_device_register(&pinfo, MIPI_DSI_PRIM,
 						MIPI_DSI_PANEL_FWVGA_PT);

@@ -1,6 +1,4 @@
-/* Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
- *
- * Copyright(C) 2011-2012 Foxconn International Holdings, Ltd. All rights reserved.
+/* Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -56,19 +54,25 @@ int vsync_start_y_adjust = 4;
 static void mdp_dma2_update_lcd(struct msm_fb_data_type *mfd)
 {
 	MDPIBUF *iBuf = &mfd->ibuf;
+#if !defined(CONFIG_FB_MSM_MIPI_ORISE_CMD_FWVGA_PT)
 	int mddi_dest = FALSE;
 	int cmd_mode = FALSE;
+#endif
 	uint32 outBpp = iBuf->bpp;
 	uint32 dma2_cfg_reg;
 	uint8 *src;
+#if !defined(CONFIG_FB_MSM_MIPI_ORISE_CMD_FWVGA_PT)
 	uint32 mddi_ld_param;
 	uint16 mddi_vdo_packet_reg;
+#endif
 #ifndef CONFIG_FB_MSM_MDP303
 	struct msm_fb_panel_data *pdata =
 	    (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 #endif
 	uint32 ystride = mfd->fbi->fix.line_length;
+#if !defined(CONFIG_FB_MSM_MIPI_ORISE_CMD_FWVGA_PT)
 	uint32 mddi_pkt_desc;
+#endif
 
 	dma2_cfg_reg = DMA_PACK_ALIGN_LSB |
 		    DMA_OUT_SEL_AHB | DMA_IBUF_NONCONTIGUOUS;
@@ -90,12 +94,13 @@ static void mdp_dma2_update_lcd(struct msm_fb_data_type *mfd)
 	}
 #endif
 
+#if !defined(CONFIG_FB_MSM_MIPI_ORISE_CMD_FWVGA_PT)
 	if (mfd->fb_imgType == MDP_BGR_565)
 		dma2_cfg_reg |= DMA_PACK_PATTERN_BGR;
 	else if (mfd->fb_imgType == MDP_RGBA_8888)
 		dma2_cfg_reg |= DMA_PACK_PATTERN_BGR;
 	else
-		dma2_cfg_reg |= DMA_PACK_PATTERN_BGR;
+		dma2_cfg_reg |= DMA_PACK_PATTERN_RGB;
 
 	if (outBpp == 4) {
 		dma2_cfg_reg |= DMA_IBUF_C3ALPHA_EN;
@@ -151,6 +156,12 @@ static void mdp_dma2_update_lcd(struct msm_fb_data_type *mfd)
 			outp32(MDP_EBI2_LCD1, mfd->data_port_phys);
 		}
 	}
+#else
+	dma2_cfg_reg |= DMA_PACK_PATTERN_BGR;
+	dma2_cfg_reg |= DMA_IBUF_C3ALPHA_EN;
+	dma2_cfg_reg |= DMA_IBUF_FORMAT_xRGB8888_OR_ARGB8888;
+	dma2_cfg_reg |= DMA_OUT_SEL_DSI_CMD;
+#endif
 
 	src = (uint8 *) iBuf->buf;
 	/* starting input address */
@@ -168,16 +179,22 @@ static void mdp_dma2_update_lcd(struct msm_fb_data_type *mfd)
 	MDP_OUTP(MDP_CMD_DEBUG_ACCESS_BASE + 0x0188, src);
 	MDP_OUTP(MDP_CMD_DEBUG_ACCESS_BASE + 0x018C, ystride);
 #else
+#if !defined(CONFIG_FB_MSM_MIPI_ORISE_CMD_FWVGA_PT)
 	if (cmd_mode)
 		MDP_OUTP(MDP_BASE + 0x90004,
 			(mfd->panel_info.yres << 16 | mfd->panel_info.xres));
 	else
 		MDP_OUTP(MDP_BASE + 0x90004, (iBuf->dma_h << 16 | iBuf->dma_w));
+#else
+	MDP_OUTP(MDP_BASE + 0x90004,
+		(mfd->panel_info.yres << 16 | mfd->panel_info.xres));
+#endif
 
 	MDP_OUTP(MDP_BASE + 0x90008, src);
 	MDP_OUTP(MDP_BASE + 0x9000c, ystride);
 #endif
 
+#if !defined(CONFIG_FB_MSM_MIPI_ORISE_CMD_FWVGA_PT)
 	if (mfd->panel_info.bpp == 18) {
 		mddi_pkt_desc = MDDI_VDO_PACKET_DESC;
 		dma2_cfg_reg |= DMA_DSTC0G_6BITS |	/* 666 18BPP */
@@ -191,6 +208,10 @@ static void mdp_dma2_update_lcd(struct msm_fb_data_type *mfd)
 		dma2_cfg_reg |= DMA_DSTC0G_6BITS |	/* 565 16BPP */
 		    DMA_DSTC1B_5BITS | DMA_DSTC2R_5BITS;
 	}
+#else
+	dma2_cfg_reg |= DMA_DSTC0G_8BITS |      /* 888 24BPP */
+	DMA_DSTC1B_8BITS | DMA_DSTC2R_8BITS;
+#endif
 
 #ifndef CONFIG_FB_MSM_MDP303
 
@@ -213,14 +234,21 @@ static void mdp_dma2_update_lcd(struct msm_fb_data_type *mfd)
 				iBuf->dma_h);
 	}
 #else
+#if !defined(CONFIG_FB_MSM_MIPI_ORISE_CMD_FWVGA_PT)
 	if (mfd->panel_info.type == MIPI_CMD_PANEL) {
 		/* dma_p = 0, dma_s = 1 */
 		 MDP_OUTP(MDP_BASE + 0xF1000, 0x10);
 		 /* enable dsi trigger on dma_p */
 		 MDP_OUTP(MDP_BASE + 0xF1004, 0x01);
+#else
+	{
+	/* dma_p = 0, dma_s = 1 */
+		 MDP_OUTP(MDP_BASE + 0xF1000, 0x10);
+		 /* enable dsi trigger on dma_p */
+		 MDP_OUTP(MDP_BASE + 0xF1004, 0x01);
+#endif
 	}
 #endif
-
 	/* dma2 config register */
 #ifdef MDP_HW_VSYNC
 	MDP_OUTP(MDP_BASE + 0x90000, dma2_cfg_reg);
@@ -303,8 +331,11 @@ void	mdp3_dsi_cmd_dma_busy_wait(struct msm_fb_data_type *mfd)
 
 	spin_lock_irqsave(&mdp_spin_lock, flag);
 #ifdef DSI_CLK_CTRL
+
+	spin_lock_bh(&dsi_clk_lock);
 	if (mipi_dsi_clk_on == 0)
 		mipi_dsi_turn_on_clks();
+	spin_unlock_bh(&dsi_clk_lock);
 #endif
 
 	if (mfd->dma->busy == TRUE) {
@@ -317,17 +348,16 @@ void	mdp3_dsi_cmd_dma_busy_wait(struct msm_fb_data_type *mfd)
 
 	if (need_wait) {
 		/* wait until DMA finishes the current job */
-/* FIH-SW3-MM-NC-LCM-05-[+ */
-		/* Avoid to wait infinitely, use timeout */
-/*		wait_for_completion(&mfd->dma->comp); */
-		if (!wait_for_completion_timeout(&mfd->dma->comp, 500)) {
+#ifdef CONFIG_FIH_PROJECT_NAN
+		wait_for_completion(&mfd->dma->comp);
+#else
+		if (!wait_for_completion_timeout(&mfd->dma->comp, 1*HZ)) {
 			printk(KERN_ALERT "[DISPLAY] %s: Wait DMA finish timeout!\n", __func__);
-/* FIH-SW-MM-VH-DISPLAY-27+ */
 			mfd->dma->busy= FALSE;
 			mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_OFF, TRUE);
 			complete(&mfd->dma->comp);
 		}
-/* FIH-SW3-MM-NC-LCM-05 -]- */
+#endif
 	}
 }
 #endif
@@ -490,33 +520,55 @@ static void mdp_dma2_update_sub(struct msm_fb_data_type *mfd)
 void mdp_dma2_update(struct msm_fb_data_type *mfd)
 #endif
 {
+	unsigned long flag;
+	static int first_vsync;
+	int need_wait = 0;
+
 	down(&mfd->dma->mutex);
-	if ((mfd) && (!mfd->dma->busy) && (mfd->panel_power_on)) {
+	if ((mfd) && (mfd->panel_power_on)) {
 		down(&mfd->sem);
+		spin_lock_irqsave(&mdp_spin_lock, flag);
+		if (mfd->dma->busy == TRUE)
+			need_wait++;
+		spin_unlock_irqrestore(&mdp_spin_lock, flag);
+
+		if (need_wait)
+			wait_for_completion_killable(&mfd->dma->comp);
+
+		/* schedule DMA to start */
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 		mfd->ibuf_flushed = TRUE;
 		mdp_dma2_update_lcd(mfd);
 
+		spin_lock_irqsave(&mdp_spin_lock, flag);
 		mdp_enable_irq(MDP_DMA2_TERM);
 		mfd->dma->busy = TRUE;
 		INIT_COMPLETION(mfd->dma->comp);
-
+		INIT_COMPLETION(vsync_cntrl.vsync_comp);
+		if (!vsync_cntrl.vsync_irq_enabled &&
+				vsync_cntrl.disabled_clocks) {
+			MDP_OUTP(MDP_BASE + 0x021c, 0x10); /* read pointer */
+			outp32(MDP_INTR_CLEAR, MDP_PRIM_RDPTR);
+			mdp_intr_mask |= MDP_PRIM_RDPTR;
+			outp32(MDP_INTR_ENABLE, mdp_intr_mask);
+			mdp_enable_irq(MDP_VSYNC_TERM);
+			vsync_cntrl.vsync_dma_enabled = 1;
+		}
+		spin_unlock_irqrestore(&mdp_spin_lock, flag);
 		/* schedule DMA to start */
 		mdp_dma_schedule(mfd, MDP_DMA2_TERM);
 		up(&mfd->sem);
 
-		/* wait until DMA finishes the current job */
-/* FIH-SW3-MM-NC-LCM-05-[+ */
-		/* Avoid to wait infinitely, use timeout */
-/*		wait_for_completion_killable(&mfd->dma->comp); */
-		if (!wait_for_completion_killable_timeout(&mfd->dma->comp, 500)) {
-			printk(KERN_ALERT "[DISPLAY] %s: Wait DMA finish timeout!\n", __func__);
-/* FIH-SW-MM-VH-DISPLAY-27+ */
-			mfd->dma->busy= FALSE;
-			mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_OFF, TRUE);
-			complete(&mfd->dma->comp);
+		/* wait until Vsync finishes the current job */
+		if (first_vsync) {
+			if (!wait_for_completion_killable_timeout
+					(&vsync_cntrl.vsync_comp, HZ/10))
+				pr_err("Timedout DMA %s %d", __func__,
+								__LINE__);
+		} else {
+			first_vsync = 1;
 		}
-/* FIH-SW3-MM-NC-LCM-05-]- */
-		mdp_disable_irq(MDP_DMA2_TERM);
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
 	/* signal if pan function is waiting for the update completion */
 		if (mfd->pan_waiting) {
@@ -525,6 +577,42 @@ void mdp_dma2_update(struct msm_fb_data_type *mfd)
 		}
 	}
 	up(&mfd->dma->mutex);
+}
+
+void mdp_dma_vsync_ctrl(int enable)
+{
+	unsigned long flag;
+	int disabled_clocks;
+	if (vsync_cntrl.vsync_irq_enabled == enable)
+		return;
+
+	spin_lock_irqsave(&mdp_spin_lock, flag);
+	if (!enable)
+		INIT_COMPLETION(vsync_cntrl.vsync_wait);
+
+	vsync_cntrl.vsync_irq_enabled = enable;
+	disabled_clocks = vsync_cntrl.disabled_clocks;
+	spin_unlock_irqrestore(&mdp_spin_lock, flag);
+
+	if (enable && disabled_clocks)
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+
+	spin_lock_irqsave(&mdp_spin_lock, flag);
+	if (enable && vsync_cntrl.disabled_clocks &&
+			!vsync_cntrl.vsync_dma_enabled) {
+		MDP_OUTP(MDP_BASE + 0x021c, 0x10); /* read pointer */
+		outp32(MDP_INTR_CLEAR, MDP_PRIM_RDPTR);
+		mdp_intr_mask |= MDP_PRIM_RDPTR;
+		outp32(MDP_INTR_ENABLE, mdp_intr_mask);
+		mdp_enable_irq(MDP_VSYNC_TERM);
+		vsync_cntrl.disabled_clocks = 0;
+	} else if (enable && vsync_cntrl.disabled_clocks) {
+		vsync_cntrl.disabled_clocks = 0;
+	}
+	spin_unlock_irqrestore(&mdp_spin_lock, flag);
+	if (vsync_cntrl.vsync_irq_enabled &&
+		atomic_read(&vsync_cntrl.suspend) == 0)
+		atomic_set(&vsync_cntrl.vsync_resume, 1);
 }
 
 void mdp_lcd_update_workqueue_handler(struct work_struct *work)
@@ -547,7 +635,11 @@ void mdp_set_dma_pan_info(struct fb_info *info, struct mdp_dirty_region *dirty,
 	down(&mfd->sem);
 
 	iBuf = &mfd->ibuf;
-	iBuf->buf = (uint8 *) info->fix.smem_start;
+
+	if (mfd->display_iova)
+		iBuf->buf = (uint8 *)mfd->display_iova;
+	else
+		iBuf->buf = (uint8 *) info->fix.smem_start;
 
 	iBuf->buf += calc_fb_offset(mfd, fbi, bpp);
 
@@ -593,42 +685,6 @@ void mdp_dma_pan_update(struct fb_info *info)
 		wait_for_completion_killable(&mfd->pan_comp);
 	} else
 		mfd->dma_fnc(mfd);
-}
-
-void mdp_dma_vsync_ctrl(int enable)
-{
-	unsigned long flag;
-	int disabled_clocks;
-	if (vsync_cntrl.vsync_irq_enabled == enable)
-		return;
-
-	spin_lock_irqsave(&mdp_spin_lock, flag);
-	if (!enable)
-		INIT_COMPLETION(vsync_cntrl.vsync_wait);
-
-	vsync_cntrl.vsync_irq_enabled = enable;
-	disabled_clocks = vsync_cntrl.disabled_clocks;
-	spin_unlock_irqrestore(&mdp_spin_lock, flag);
-
-	if (enable && disabled_clocks)
-		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-
-	spin_lock_irqsave(&mdp_spin_lock, flag);
-	if (enable && vsync_cntrl.disabled_clocks &&
-			!vsync_cntrl.vsync_dma_enabled) {
-		MDP_OUTP(MDP_BASE + 0x021c, 0x10); /* read pointer */
-		outp32(MDP_INTR_CLEAR, MDP_PRIM_RDPTR);
-		mdp_intr_mask |= MDP_PRIM_RDPTR;
-		outp32(MDP_INTR_ENABLE, mdp_intr_mask);
-		mdp_enable_irq(MDP_VSYNC_TERM);
-		vsync_cntrl.disabled_clocks = 0;
-	} else if (enable && vsync_cntrl.disabled_clocks) {
-		vsync_cntrl.disabled_clocks = 0;
-	}
-	spin_unlock_irqrestore(&mdp_spin_lock, flag);
-	if (vsync_cntrl.vsync_irq_enabled &&
-		atomic_read(&vsync_cntrl.suspend) == 0)
-		atomic_set(&vsync_cntrl.vsync_resume, 1);
 }
 
 void mdp_refresh_screen(unsigned long data)

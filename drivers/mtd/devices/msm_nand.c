@@ -437,13 +437,6 @@ struct flash_identification {
 	uint32_t ecc_correctability;
 } supported_flash;
 
-/* FIH-SW3-KERNEL-TH-write_panic_file-00+[ */
-uint32_t fih_get_flash_id(void)
-{
-	return supported_flash.flash_id;
-}
-/* FIH-SW3-KERNEL-TH-write_panic_file-00+] */
-
 uint16_t flash_onfi_crc_check(uint8_t *buffer, uint16_t count)
 {
 	int i;

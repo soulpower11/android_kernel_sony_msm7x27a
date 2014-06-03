@@ -18,6 +18,8 @@
 #include "mipi_ilitek.h"
 #include <mach/vreg.h>
 #include <linux/gpio.h>
+/* FIH-SW-MM-VH-DISPLAY-47+ */
+#include <mach/fih_lcm.h>
 
 static struct msm_panel_common_pdata *mipi_ilitek_pdata;
 
@@ -172,8 +174,10 @@ static struct dsi_cmd_desc ilitek_video_on_cmds[] = {
 /* FIH-SW-MM-VH-DISPLAY-24*] */
 /* FIH-SW-MM-VH-DISPLAY-20*[ */
 static struct dsi_cmd_desc ilitek_video_off_cmds[] = {
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 0,
+/* FIH-SW-MM-VH-DISPLAY-48*[ */
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 10,
 		sizeof(write_ctrl_displayDD0), write_ctrl_displayDD0},
+/* FIH-SW-MM-VH-DISPLAY-48*] */
 	{DTYPE_DCS_WRITE, 1, 0, 0, 10,
 		sizeof(display_off), display_off}
 };
@@ -237,12 +241,16 @@ static int mipi_ilitek_lcd_on(struct platform_device *pdev)
 	}
 	
 	/*TODO: Is it necessary to enter critical section? */
-	rc = mipi_dsi_cmds_tx_tap(mfd, &ilitek_tx_buf, ilitek_video_on_cmds,
+	rc = mipi_dsi_cmds_tx(&ilitek_tx_buf, ilitek_video_on_cmds,
 		ARRAY_SIZE(ilitek_video_on_cmds));
 
 	printk(KERN_ALERT "[DISPLAY] Finish sending dsi commands\n, rc=%d\r\n", rc);
 
 	display_initialize = 1;
+
+/* FIH-SW-MM-VH-DISPLAY-47+[ */
+	mfd->panel_info.lcm_model = LCM_ID_DA_TAP_CMI;
+/* FIH-SW-MM-VH-DISPLAY-47+] */
 
 	if(rc >0)
 		rc = 0;
@@ -268,7 +276,7 @@ static int mipi_ilitek_lcd_off(struct platform_device *pdev)
 
 	/*TODO: Is it necessary to enter critical section? */
 	mipi_set_tx_power_mode(0);
-	mipi_dsi_cmds_tx_tap(mfd, &ilitek_tx_buf, ilitek_video_off_cmds,
+	mipi_dsi_cmds_tx(&ilitek_tx_buf, ilitek_video_off_cmds,
 			ARRAY_SIZE(ilitek_video_off_cmds));
 	mipi_set_tx_power_mode(1);
 
@@ -297,7 +305,7 @@ static void mipi_ilitek_lcd_backlight(struct msm_fb_data_type *mfd)
 	/* FIH-SW-MM-VH-DISPLAY-04*[ */
 	down(&mfd->dma->mutex);
 	mipi_set_tx_power_mode(0);
-	mipi_dsi_cmds_tx_tap(mfd, &ilitek_tx_buf, ilitek_video_bkl_cmds,
+	mipi_dsi_cmds_tx(&ilitek_tx_buf, ilitek_video_bkl_cmds,
 			ARRAY_SIZE(ilitek_video_bkl_cmds));
 	mipi_set_tx_power_mode(1);
 	up(&mfd->dma->mutex);
@@ -319,10 +327,10 @@ static int mipi_ilitek_set_dimming(char enable)
 	mipi_set_tx_power_mode(0);
 
 	if(enable) {
-		mipi_dsi_cmds_tx(gmfd, &ilitek_tx_buf, ilitek_write_DD1,
+		mipi_dsi_cmds_tx(&ilitek_tx_buf, ilitek_write_DD1,
 				ARRAY_SIZE(ilitek_write_DD1));
 	}else{
-		mipi_dsi_cmds_tx(gmfd, &ilitek_tx_buf, ilitek_write_DD0,
+		mipi_dsi_cmds_tx(&ilitek_tx_buf, ilitek_write_DD0,
 				ARRAY_SIZE(ilitek_write_DD0));
 	}
 
@@ -349,7 +357,7 @@ static int mipi_ilitek_manufacture_id(struct msm_fb_data_type *mfd)
 	/* Disable TE */
 	down(&mfd->dma->mutex);
 	mipi_set_tx_power_mode(0);
-	mipi_dsi_cmds_tx_tap(mfd, tp, &dsi_tear_off_cmd, 1);
+	mipi_dsi_cmds_tx(tp, &dsi_tear_off_cmd, 1);
 	mipi_set_tx_power_mode(1);
 	up(&mfd->dma->mutex);
 
@@ -380,7 +388,7 @@ static int mipi_ilitek_manufacture_id(struct msm_fb_data_type *mfd)
 	/* Enable TE */
 	down(&mfd->dma->mutex);
 	mipi_set_tx_power_mode(0);
-	mipi_dsi_cmds_tx_tap(mfd, tp, &dsi_tear_on_cmd, 1);
+	mipi_dsi_cmds_tx(tp, &dsi_tear_on_cmd, 1);
 	mipi_set_tx_power_mode(1);
 	up(&mfd->dma->mutex);
 

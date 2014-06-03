@@ -194,6 +194,10 @@
 
 #define MSM_CAM_IOCTL_ISPIF_IO_CFG \
 	_IOR(MSM_CAM_IOCTL_MAGIC, 54, struct ispif_cfg_data *)
+//Flea++  1011-API implement
+#define MSM_CAM_IOCTL_SENSOR_IO_CFG_BRITHNESS \
+	_IOW(MSM_CAM_IOCTL_MAGIC, 55, struct sensor_cfg_data *)
+//Flea--  1011-API implement
 
 struct msm_mctl_pp_cmd {
 	int32_t  id;
@@ -817,10 +821,17 @@ struct msm_snapshot_pp_status {
 #define CFG_START_STREAM              44
 #define CFG_STOP_STREAM               45
 #define CFG_GET_CSI_PARAMS            46
+
+#ifndef CONFIG_FIH_PROJECT_NAN
 #define CFG_GET_FLASH_STATE           47 /* MTD-MM-SL-AddEXIF-04+ */
 #define CFG_GET_RC_AF_CHECK           48 /* MTD-MM-SL-SupportAF-00+ */
 #define CFG_MAX			49
-
+#else
+/*++ PeterShih 20120425 add/modify the camera sensor function ++*/
+#define CFG_SET_SCENE                 47
+#define CFG_MAX                       48
+/*-- PeterShih 20120425 add/modify the camera sensor function --*/
+#endif
 
 #define MOVE_NEAR	0
 #define MOVE_FAR	1
@@ -1088,7 +1099,30 @@ enum msm_v4l2_af_level { /*MTD-MM-UW-AddAF-00*{ */
 /*MTD-MM-UW-set AF mode-00*} */
 /* MTD-MM-SL-SupportAF-00*} */
 
-
+//Flea++
+enum msm_v4l2_best_shot{
+	msm_v4l2_best_shot_normal = 0,
+  msm_v4l2_best_shot_auto = 1,
+  msm_v4l2_best_shot_landscape = 2,
+  msm_v4l2_best_shot_snow,
+  msm_v4l2_best_shot_beach,
+  msm_v4l2_best_shot_sunset,
+  msm_v4l2_best_shot_night,
+  msm_v4l2_best_shot_portrait,
+  msm_v4l2_best_shot_backlight,
+  msm_v4l2_best_shot_sports,
+  msm_v4l2_best_shot_antishake,
+  msm_v4l2_best_shot_flowers,
+  msm_v4l2_best_shot_candlelight,
+  msm_v4l2_best_shot_fireworks,
+  msm_v4l2_best_shot_party,
+  msm_v4l2_best_shot_night_portrait,
+  msm_v4l2_best_shot_theatre,
+  msm_v4l2_best_shot_action,
+  msm_v4l2_best_shot_ar,
+  msm_v4l2_best_shot_max,
+};
+//Flea--
 #define CAMERA_ISO_TYPE_AUTO           0
 #define CAMEAR_ISO_TYPE_HJR            1
 #define CAMEAR_ISO_TYPE_100            2
@@ -1113,6 +1147,9 @@ struct focus_cfg {
 };
 
 struct fps_cfg {
+#ifdef CONFIG_FIH_PROJECT_NAN
+	uint16_t fps_type;//Flea add for driver.
+#endif
 	uint16_t f_mult;
 	uint16_t fps_div;
 	uint32_t pict_fps_div;
@@ -1331,8 +1368,10 @@ struct sensor_cfg_data {
 
 	union {
 		int8_t effect;
+#ifndef CONFIG_FIH_PROJECT_NAN
 		int8_t flash_state; /* MTD-MM-SL-AddEXIF-04+ */
 		int8_t rc_af_check; /* MTD-MM-SL-SupportAF-00+ */
+#endif
 		uint8_t lens_shading;
 		uint16_t prevl_pf;
 		uint16_t prevp_pl;
@@ -1340,7 +1379,9 @@ struct sensor_cfg_data {
 		uint16_t pictp_pl;
 		uint32_t pict_max_exp_lc;
 		uint16_t p_fps;
+#ifndef CONFIG_FIH_PROJECT_NAN
 		uint16_t v_fps;/*MTD-MM-SL-FixMMSRecord-00+ */
+#endif
 		uint8_t iso_type;
 		struct sensor_init_cfg init_info;
 		struct sensor_pict_fps gfps;
@@ -1365,6 +1406,9 @@ struct sensor_cfg_data {
 		struct cord aec_cord;
 		int is_autoflash;
 		struct mirror_flip mirror_flip;
+#ifdef CONFIG_FIH_PROJECT_NAN
+		int8_t iso;//Flea modify 
+#endif
 	} cfg;
 };
 
@@ -1576,6 +1620,11 @@ struct msm_camera_info {
 	uint32_t s_mount_angle[MSM_MAX_CAMERA_SENSORS];
 	const char *video_dev_name[MSM_MAX_CAMERA_SENSORS];
 	enum sensor_type_t sensor_type[MSM_MAX_CAMERA_SENSORS];
+#ifdef CONFIG_FIH_PROJECT_NAN
+	/*++ PeterShih - 20120417 for camera HW version ++*/
+	int hw_version[MSM_MAX_CAMERA_SENSORS];
+	/*-- PeterShih - 20120417 for camera HW version --*/
+#endif
 };
 
 struct msm_cam_config_dev_info {
@@ -1591,7 +1640,9 @@ struct msm_mctl_node_info {
 
 struct flash_ctrl_data {
 	int flashtype;
+#ifndef CONFIG_FIH_PROJECT_NAN
 	int ledmode;/*MTD-MM-SL-SupportFlash-00+ */
+#endif
 	union {
 		int led_state;
 		struct strobe_flash_ctrl_data strobe_ctrl;

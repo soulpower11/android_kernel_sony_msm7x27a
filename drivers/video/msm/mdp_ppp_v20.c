@@ -2437,13 +2437,13 @@ void mdp_set_blend_attr(MDPIBUF *iBuf,
 			uint32 *tpVal,
 			uint32 perPixelAlpha, uint32 *pppop_reg_ptr)
 {
+	if (mdp_rev == MDP_REV_303) {
+		int bg_alpha;
+
 		*alpha = iBuf->mdpImg.alpha;
 		*tpVal = iBuf->mdpImg.tpVal;
 
 		if (iBuf->mdpImg.mdpOp & MDPOP_FG_PM_ALPHA) {
-			int bg_alpha = PPP_BLEND_BG_USE_ALPHA_SEL |
-					PPP_BLEND_BG_ALPHA_REVERSE;
-
 			if (perPixelAlpha) {
 				*pppop_reg_ptr |= PPP_OP_ROT_ON |
 						  PPP_OP_BLEND_ON |
@@ -2463,6 +2463,9 @@ void mdp_set_blend_attr(MDPIBUF *iBuf,
 						PPP_OP_BLEND_ALPHA_BLEND_NORMAL;
 				}
 			}
+
+			bg_alpha = PPP_BLEND_BG_USE_ALPHA_SEL |
+				PPP_BLEND_BG_ALPHA_REVERSE;
 
 			if (perPixelAlpha) {
 				bg_alpha |= PPP_BLEND_BG_SRCPIXEL_ALPHA;
@@ -2499,4 +2502,40 @@ void mdp_set_blend_attr(MDPIBUF *iBuf,
 						PPP_BLEND_CALPHA_TRNASP;
 				outpdw(MDP_BASE + 0x70010, 0);
 			}
+	} else {
+		if (perPixelAlpha) {
+			*pppop_reg_ptr |= PPP_OP_ROT_ON |
+			    PPP_OP_BLEND_ON | PPP_OP_BLEND_SRCPIXEL_ALPHA;
+		} else {
+			if ((iBuf->mdpImg.mdpOp & MDPOP_ALPHAB)
+			    && (iBuf->mdpImg.alpha == 0xff)) {
+				iBuf->mdpImg.mdpOp &= ~(MDPOP_ALPHAB);
+			}
+
+			if ((iBuf->mdpImg.mdpOp & MDPOP_ALPHAB)
+			    && (iBuf->mdpImg.mdpOp & MDPOP_TRANSP)) {
+				*pppop_reg_ptr |=
+				    PPP_OP_ROT_ON | PPP_OP_BLEND_ON |
+				    PPP_OP_BLEND_CONSTANT_ALPHA |
+				    PPP_OP_BLEND_ALPHA_BLEND_NORMAL |
+				    PPP_BLEND_CALPHA_TRNASP;
+
+				*alpha = iBuf->mdpImg.alpha;
+				*tpVal = iBuf->mdpImg.tpVal;
+			} else {
+				if (iBuf->mdpImg.mdpOp & MDPOP_TRANSP) {
+					*pppop_reg_ptr |= PPP_OP_ROT_ON |
+					    PPP_OP_BLEND_ON |
+					    PPP_OP_BLEND_SRCPIXEL_TRANSP;
+					*tpVal = iBuf->mdpImg.tpVal;
+				} else if (iBuf->mdpImg.mdpOp & MDPOP_ALPHAB) {
+					*pppop_reg_ptr |= PPP_OP_ROT_ON |
+					    PPP_OP_BLEND_ON |
+					    PPP_OP_BLEND_ALPHA_BLEND_NORMAL |
+					    PPP_OP_BLEND_CONSTANT_ALPHA;
+					*alpha = iBuf->mdpImg.alpha;
+				}
+			}
+		}
+	}
 }

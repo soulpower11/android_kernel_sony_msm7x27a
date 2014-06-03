@@ -72,55 +72,6 @@
 	#define RAM_CONSOLE_PHYS MTD_RAM_CONSOLE_ADDR
 	#define RAM_CONSOLE_SIZE 0x00020000
 
-#ifdef CONFIG_FEATURE_FIH_SW3_LAST_ALOG
-
-	#define ALOG_RAM_CONSOLE_PHYS_MAIN (RAM_CONSOLE_PHYS + RAM_CONSOLE_SIZE) 
-
-	#define ALOG_RAM_CONSOLE_SIZE_MAIN 0x00020000 /*128KB */
-	
-	/* 0x20040000 */
-	#define ALOG_RAM_CONSOLE_PHYS_RADIO (ALOG_RAM_CONSOLE_PHYS_MAIN +  ALOG_RAM_CONSOLE_SIZE_MAIN)
-	#define ALOG_RAM_CONSOLE_SIZE_RADIO 0x00020000 /*128KB */
-	
-	/* 0x20060000 */
-	#define ALOG_RAM_CONSOLE_PHYS_EVENTS (ALOG_RAM_CONSOLE_PHYS_RADIO + ALOG_RAM_CONSOLE_SIZE_RADIO) 
-	#define ALOG_RAM_CONSOLE_SIZE_EVENTS 0x00020000 /*128KB */
-	
-	/* 0x20080000 */
-	#define ALOG_RAM_CONSOLE_PHYS_SYSTEM (ALOG_RAM_CONSOLE_PHYS_EVENTS + ALOG_RAM_CONSOLE_SIZE_EVENTS) 
-	#define ALOG_RAM_CONSOLE_SIZE_SYSTEM 0x00020000 /*128KB */
-#endif /* end of #ifdef CONFIG_FEATURE_FIH_SW3_LAST_ALOG */
 #endif /* end of #ifdef CONFIG_ANDROID_RAM_CONSOLE */
-/*===========================================================================
-                        FIH RAM panic data definition
-===========================================================================*/
-#define CONFIG_FEATURE_FIH_SW3_PANIC_FILE
-#ifdef CONFIG_FEATURE_FIH_SW3_PANIC_FILE
-
-  #ifdef CONFIG_FEATURE_FIH_SW3_LAST_ALOG
-  	#define PANIC_RAM_DATA_BEGIN (ALOG_RAM_CONSOLE_PHYS_SYSTEM + ALOG_RAM_CONSOLE_SIZE_SYSTEM)
-  #else
-  	#ifdef 	CONFIG_ANDROID_RAM_CONSOLE
-  		#define PANIC_RAM_DATA_BEGIN (RAM_CONSOLE_PHYS + RAM_CONSOLE_SIZE)
-  	#else
-  		#define PANIC_RAM_DATA_BEGIN MTD_RAM_CONSOLE_ADDR
-  	#endif	
-  #endif
-  
-  #define PANIC_RAM_SIGNATURE  0x19761105
-  #define PANIC_RAM_DATA_SIZE  0x00020000 /* 128KB */
-  
-  /* FIH-SW3-KERNEL-TH-TimestampOnRAMDump-01+[ */
-  #define	CRASH_TIME_RAMDUMP_ADDR		(RAM_CONSOLE_PHYS + 0x100000 - 0x10)
-  #define	CRASH_TIME_RAMDUMP_LEN		0x10
-  /* FIH-SW3-KERNEL-TH-TimestampOnRAMDump-01-[ */
-  
-  struct fih_panic_ram_data{
-    unsigned int              signature;
-    unsigned int              length;
-    char                      data[1];
-  } ;  
-#endif /* end of 	CONFIG_FEATURE_FIH_SW3_PANIC_FILE */
-/* FIH-SW3-KERNEL-EL-write_panic_file-00+] */ 
 
 #endif

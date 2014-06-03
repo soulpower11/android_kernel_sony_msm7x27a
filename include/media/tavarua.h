@@ -52,7 +52,7 @@
 #define SRCH_MASK                  (1 << SRCH200KHZ_OFFSET)
 
 /* Standard buffer size */
-#define STD_BUF_SIZE               (128)
+#define STD_BUF_SIZE               (256)
 /* Search direction */
 #define SRCH_DIR_UP                 (0)
 #define SRCH_DIR_DOWN               (1)
@@ -104,6 +104,7 @@ int tavarua_set_audio_path(int digital_on, int analog_on);
 #define MARIMBA_2_1	0x02010204
 #define BAHAMA_1_0	0x0302010A
 #define BAHAMA_2_0	0x04020205
+#define BAHAMA_2_1      0x04020309
 #define WAIT_TIMEOUT 2000
 #define RADIO_INIT_TIME 15
 #define TAVARUA_DELAY 10
@@ -172,10 +173,13 @@ enum v4l2_cid_private_tavarua_t {
 	V4L2_CID_PRIVATE_INTF_HIGH_THRESHOLD, /* 0x800002E */
 	V4L2_CID_PRIVATE_SINR_THRESHOLD,  /* 0x800002F : IRIS */
 	V4L2_CID_PRIVATE_SINR_SAMPLES,  /* 0x8000030 : IRIS */
+	//++VaildChannel	0704
 	V4L2_CID_PRIVATE_SPUR_FREQ,
 	V4L2_CID_PRIVATE_SPUR_FREQ_RMSSI,
 	V4L2_CID_PRIVATE_SPUR_SELECTION,
 	V4L2_CID_PRIVATE_UPDATE_SPUR_TABLE,
+	V4L2_CID_PRIVATE_VALID_CHANNEL,
+	//++VaildChannel	0704
 
 };
 
@@ -340,6 +344,17 @@ enum audio_path {
 	FM_DIGITAL_PATH,
 	FM_ANALOG_PATH
 };
+//++VaildChannel	0704
+
+/* Band limits */
+#define REGION_US_EU_BAND_LOW		87500
+#define REGION_US_EU_BAND_HIGH		108000
+#define REGION_JAPAN_STANDARD_BAND_LOW	76000
+#define REGION_JAPAN_STANDARD_BAND_HIGH	90000
+#define REGION_JAPAN_WIDE_BAND_LOW	90000
+#define REGION_JAPAN_WIDE_BAND_HIGH	108000
+#define MPX_DCC_BYPASS_REG		0x88C0
+#define MPX_DCC_DATA_REG		0x88C2
 #define SRCH_MODE	0x07
 #define SRCH_DIR	0x08 /* 0-up 1-down */
 #define SCAN_DWELL	0x70
@@ -534,6 +549,12 @@ enum {
 #define SPUR_TABLE_START_ADDR	(SPUR_TABLE_ADDR + 1)
 #define XFR_PEEK_COMPLETE	(XFR_PEEK_MODE | READ_COMPLETE)
 #define XFR_POKE_COMPLETE	(XFR_POKE_MODE)
+#define TUNE_MULT		(16)
+#define ADJ_CHANNEL_KHZ		(50)
+#define MPX_DCC_UPPER_LIMIT	(34000)
+#define MPX_DCC_LIMIT		(12566)
+#define INVALID_CHANNEL		(0)
+#define VALID_CHANNEL		(1)
 
 #define COMPUTE_SPUR(val)	((((val) - (76000)) / (50)))
 #define GET_FREQ(val, bit)	((bit == 1) ? ((val) >> 8) : ((val) & 0xFF))

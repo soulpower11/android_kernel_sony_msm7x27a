@@ -1,7 +1,7 @@
-3.4.0 version 
+3.4.x version 
 
--OC 1.3Ghz
--GPU OC 200MHz
--Frandom Scrit included
+Master Branch is for Mesona[Xperia Miro]
 
-more optimizations are coming soon !
+Use Jellybean-3.4 for JLO[Xperia J]
+
+cm-11 branch is for Nanhu[Xperia E]
